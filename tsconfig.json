@@ -1,0 +1,52 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "useUnknownInCatchVariables": true,
+
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    "declaration": true,
+    "noEmit": true,
+
+    "types": ["node"],
+
+    // One check for the whole workspace, resolving cross-package imports to
+    // source rather than to a sibling's `dist`. tsdown builds each package on
+    // its own, so there is no project-reference graph to keep in step, and a
+    // change in `core` is type-checked against its dependents without a build.
+    "paths": {
+      "@svmd/core": ["./packages/core/src/index.ts"],
+      "@svmd/content": ["./packages/content/src/index.ts"],
+      "@svmd/shiki": ["./packages/shiki/src/index.ts"],
+      "svmd": ["./packages/svmd/src/index.ts"]
+    }
+  },
+  "include": ["packages/*/src", "packages/*/*.config.ts", "test/**/*.ts", "scripts", "*.config.ts"],
+
+  // Load-bearing, not decoration. The forks are JavaScript whose declarations
+  // are emitted to `types/` so they cannot shadow the .js beside them. These
+  // references are what map an import of `lib/index.js` to `types/lib/index.d.ts`;
+  // without them TypeScript finds no declaration, falls back to `any` under
+  // `skipLibCheck`, and every call into the grammar goes unchecked in silence.
+  "references": [
+    { "path": "./packages/micromark-factory-svelte-expression" },
+    { "path": "./packages/micromark-extension-svelte" },
+    { "path": "./packages/mdast-util-svelte" }
+  ]
+}

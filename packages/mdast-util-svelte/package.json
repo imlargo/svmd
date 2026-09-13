@@ -1,0 +1,45 @@
+{
+  "name": "@svmd/mdast-util-svelte",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "mdast extension for Svelte syntax \u2014 fork of mdast-util-mdx-jsx",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "lib/",
+    "types/",
+    "LICENSE-upstream",
+    "FORK.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@svmd/micromark-extension-svelte": "workspace:*",
+    "@types/mdast": "^4.0.4",
+    "devlop": "^1.1.0",
+    "mdast-util-from-markdown": "^2.0.3",
+    "micromark-util-html-tag-name": "^2.0.1",
+    "micromark-util-types": "^2.0.2",
+    "vfile-message": "^4.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imlargo/svmd.git",
+    "directory": "packages/mdast-util-svelte"
+  },
+  "author": "imlargo",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

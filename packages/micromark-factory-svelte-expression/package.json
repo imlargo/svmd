@@ -1,0 +1,40 @@
+{
+  "name": "@svmd/micromark-factory-svelte-expression",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "micromark factory to parse a Svelte expression \u2014 fork of micromark-factory-mdx-expression",
+  "files": [
+    "index.js",
+    "types/",
+    "LICENSE-upstream",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "devlop": "^1.1.0",
+    "micromark-util-character": "^2.1.1",
+    "micromark-util-events-to-acorn": "^2.0.3",
+    "micromark-util-symbol": "^2.0.1",
+    "micromark-util-types": "^2.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imlargo/svmd.git",
+    "directory": "packages/micromark-factory-svelte-expression"
+  },
+  "author": "imlargo",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

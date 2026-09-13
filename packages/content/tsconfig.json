@@ -1,0 +1,8 @@
+{
+  // `paths` is cleared on purpose: the root config resolves sibling packages to
+  // source so one `tsc --noEmit` covers the workspace, but tsdown must see them
+  // as the external imports they are in the published output.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "paths": {} },
+  "include": ["src"]
+}

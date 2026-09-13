@@ -1,0 +1,23 @@
+node_modules
+dist
+coverage
+*.log
+*.tsbuildinfo
+.DS_Store
+
+# SvelteKit output in the example app.
+.svelte-kit
+examples/*/build
+
+test/.tmp/
+
+# Declarations emitted for the forked JavaScript. They go outside the source tree
+# so they cannot shadow — and silently stop type-checking — the .js beside them.
+# `lib/options.d.ts` and `lib/nodes.d.ts` are hand-written, and are tracked.
+packages/*/types/
+packages/*/lib/*.d.ts.map
+packages/micromark-extension-svelte/lib/*.d.ts
+!packages/micromark-extension-svelte/lib/options.d.ts
+packages/mdast-util-svelte/lib/*.d.ts
+!packages/mdast-util-svelte/lib/nodes.d.ts
+packages/*/index.d.ts.map

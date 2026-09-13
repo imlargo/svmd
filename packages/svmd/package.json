@@ -1,0 +1,42 @@
+{
+  "name": "svmd",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@svmd/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "vite": "^6.0.0 || ^7.0.0 || ^8.0.0",
+    "@sveltejs/vite-plugin-svelte": "^5.0.0 || ^6.0.0 || ^7.0.0",
+    "svelte": "^5.0.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imlargo/svmd.git",
+    "directory": "packages/svmd"
+  },
+  "author": "imlargo",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  }
+}

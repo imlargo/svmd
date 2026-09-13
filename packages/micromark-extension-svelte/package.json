@@ -1,0 +1,48 @@
+{
+  "name": "@svmd/micromark-extension-svelte",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "micromark extension for Svelte syntax in markdown \u2014 fork of micromark-extension-mdx-jsx",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "lib/",
+    "types/",
+    "LICENSE-upstream",
+    "FORK.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@svmd/micromark-factory-svelte-expression": "workspace:*",
+    "@types/estree": "^1.0.8",
+    "acorn": "^8.18.0",
+    "devlop": "^1.1.0",
+    "estree-util-is-identifier-name": "^3.0.0",
+    "micromark-factory-space": "^2.0.1",
+    "micromark-util-character": "^2.1.1",
+    "micromark-util-events-to-acorn": "^2.0.3",
+    "micromark-util-symbol": "^2.0.1",
+    "micromark-util-types": "^2.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imlargo/svmd.git",
+    "directory": "packages/micromark-extension-svelte"
+  },
+  "author": "imlargo",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

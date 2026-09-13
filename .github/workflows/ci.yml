@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# There are no hooks to install on a CI checkout, and `prepare` runs on every
+# install. Husky's documented way to opt out of that is this variable.
+env:
+  HUSKY: 0
+
+jobs:
+  check:
+    name: Format, lint, types, tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The pre-commit hook already formats, but a hook is local and skippable
+      # (`--no-verify`, a fresh clone that never ran `pnpm install`, a GUI client).
+      # This is the copy that actually holds the line.
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      # Before test, not after: test/assertions.test.ts runs a fixture pass
+      # against the *built* dist/ in a subprocess, so micromark's development
+      # assertions can be armed before the package is first imported.
+      - run: pnpm build
+      - run: pnpm test
+      # Validates each built package's `exports`/`types` actually resolve the way
+      # its package.json claims, rather than trusting the config was written right.
+      - run: pnpm pack:check
+
+  compat:
+    name: Built output on Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22', '24']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+
+      # tsdown (the bundler) requires Node ^22.18 || >=24.11 to run at all — a much
+      # newer Node than `engines` promises consumers. Build here on a modern Node,
+      # then switch below to verify the *built output* on the oldest one.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      # Runs the built dist/ on the oldest version `engines` claims, so the claim is
+      # verified rather than asserted. No test runner: vitest itself needs Node 20.19+,
+      # so this uses plain `node` to also cover any older patch in the matrix.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node scripts/smoke.mjs
+
+  consumer:
+    name: Packed tarballs on vite ${{ matrix.vite }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - vite: 6
+            svelte-plugin: 5
+          - vite: 7
+            svelte-plugin: 6
+          - vite: 8
+            svelte-plugin: 7
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      # Against the packed tarballs, not the workspace: the workspace hides an
+      # `exports` map that does not resolve, a `files` list missing something, and
+      # a dependency only ever satisfied by a sibling. The peer range is a promise,
+      # so it is kept by building every version in it rather than by asserting it.
+      - name: Pack
+        run: |
+          mkdir -p /tmp/pack
+          for dir in packages/*/; do
+            (cd "$dir" && pnpm pack --pack-destination /tmp/pack)
+          done
+      - name: Build a consumer
+        run: node scripts/consumer-check.mjs /tmp/pack ${{ matrix.vite }} ${{ matrix.svelte-plugin }}
+
+  example:
+    name: SvelteKit example
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm example

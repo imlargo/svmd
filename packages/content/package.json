@@ -1,0 +1,34 @@
+{
+  "name": "@svmd/content",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imlargo/svmd.git",
+    "directory": "packages/content"
+  },
+  "devDependencies": {
+    "@standard-schema/spec": "^1.1.0"
+  },
+  "author": "imlargo",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  }
+}

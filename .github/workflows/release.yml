@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # creating the GitHub release at the end of this job
+  id-token: write # npm trusted publishing (OIDC) and provenance both need this
+
+# No hooks to install on a CI checkout; see the note in ci.yml.
+env:
+  HUSKY: 0
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      # A recent npm CLI (>=11.5.1) is required for trusted publishing.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          # npm's own trusted-publishing docs disable caching in the release job
+          # specifically — the one job that must never build from anything stale.
+          package-manager-cache: false
+
+      - run: pnpm install --frozen-lockfile
+
+      # Every package shares one version, so one tag describes the whole release.
+      # A package left behind publishes a version nobody can trace to a commit,
+      # and `workspace:*` would then resolve a sibling that was never published.
+      - name: Tag matches every package version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          fail=0
+          for manifest in package.json packages/*/package.json; do
+            version="$(node -p "require('./${manifest}').version")"
+            if [ "$version" != "$tag" ]; then
+              echo "${manifest} is at ${version}, tag is ${tag}" >&2
+              fail=1
+            fi
+          done
+          [ "$fail" -eq 0 ] || exit 1
+
+      # A version published without an entry is one nobody can find out what
+      # changed in — and it cannot be republished once it is on npm.
+      - name: Changelog has an entry for the tag
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          if ! grep -qE "^## \[${tag}\]" CHANGELOG.md; then
+            echo "CHANGELOG.md has no '## [${tag}]' section" >&2
+            exit 1
+          fi
+
+      - run: pnpm lint
+      - run: pnpm typecheck
+      # Before test: see the note in ci.yml.
+      - run: pnpm build
+      - run: pnpm test
+      - run: pnpm pack:check
+
+      # No NPM_TOKEN: npm dropped 2FA-bypass tokens, so CI authenticates through
+      # trusted publishing instead — npm verifies this workflow's OIDC identity
+      # against the trusted publisher configured on each package. That has to be
+      # set up on npmjs.com (Settings -> Trusted Publisher) for *every* package,
+      # naming this repository and this workflow's filename, or the publish is
+      # rejected. Since npm's 2026-05-20 change the config must also explicitly
+      # allow the `publish` action.
+      #
+      # `pnpm publish -r` walks the workspace in dependency order and rewrites
+      # every `workspace:*` to the version being published, so a consumer never
+      # sees a protocol npm cannot resolve.
+      - run: pnpm publish -r --access public --no-git-checks
+
+      # A tag on its own renders as an empty page, so anyone arriving from a
+      # changelog link or the npm sidebar sees nothing. The entry the step above
+      # already proved exists is the release body — written once, published
+      # twice, never drifting apart.
+      #
+      # Last, deliberately: a release that announces a version npm does not have
+      # is worse than no release at all.
+      - name: Announce the release on GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          awk -v tag="$tag" '
+            index($0, "## [" tag "]") == 1 { found = 1; next }
+            /^## \[/ { found = 0 }
+            found
+          ' CHANGELOG.md > release-notes.md
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file release-notes.md \
+            --verify-tag

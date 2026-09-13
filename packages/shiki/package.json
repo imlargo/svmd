@@ -1,0 +1,38 @@
+{
+  "name": "@svmd/shiki",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Shiki syntax highlighting for svmd",
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@svmd/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "shiki": "^3.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imlargo/svmd.git",
+    "directory": "packages/shiki"
+  },
+  "author": "imlargo",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  }
+}

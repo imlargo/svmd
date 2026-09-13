@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "declarationDir": "types",
+    "emitDeclarationOnly": true,
+    "exactOptionalPropertyTypes": true,
+    "lib": [
+      "es2023"
+    ],
+    "module": "node16",
+    "moduleResolution": "node16",
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "es2023"
+  },
+  "include": [
+    "index.js",
+    "index.d.ts",
+    "lib/**/*.js",
+    "lib/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "test",
+    "types"
+  ]
+}

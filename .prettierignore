@@ -1,0 +1,23 @@
+# Build output — tsdown writes it, nobody reads the diff.
+dist
+coverage
+
+# pnpm owns this file's formatting and rewrites it on every install. Formatting it
+# here would mean fighting pnpm for it on every lockfile change.
+pnpm-lock.yaml
+
+# The forks keep upstream's formatting, deliberately. FORK.md records the commit
+# each file came from, and every reformat makes the next diff against upstream
+# unreadable — which is the single property that keeps the forks maintainable.
+packages/micromark-extension-svelte
+packages/micromark-factory-svelte-expression
+packages/mdast-util-svelte
+
+# Generated: snapshots are compared byte for byte against compiler output, and
+# fixtures are markdown whose whitespace is the thing under test.
+test/snapshots
+test/fixtures
+
+# Not ours to format.
+examples/**/.svelte-kit
+examples/**/build

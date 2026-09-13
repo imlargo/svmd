@@ -1,0 +1,77 @@
+{
+  "name": "svmd-monorepo",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Markdown compiled to Svelte 5 components, as a Vite plugin",
+  "license": "MIT",
+  "author": "imlargo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imlargo/svmd.git"
+  },
+  "homepage": "https://github.com/imlargo/svmd#readme",
+  "bugs": {
+    "url": "https://github.com/imlargo/svmd/issues"
+  },
+  "packageManager": "pnpm@10.29.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' build",
+    "dev": "pnpm -r --parallel --filter './packages/*' dev",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "typecheck": "tsc -b packages/micromark-factory-svelte-expression packages/micromark-extension-svelte packages/mdast-util-svelte && tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test",
+    "pack:check": "pnpm -r --filter './packages/*' exec publint && pnpm -r --filter './packages/*' exec attw --pack --profile esm-only",
+    "smoke": "pnpm build && node scripts/smoke.mjs",
+    "e2e": "node scripts/consumer-check.mjs",
+    "example": "pnpm --filter @svmd/example-kit-blog build",
+    "prepare": "husky || true"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@eslint/js": "^10.0.1",
+    "@jridgewell/trace-mapping": "^0.3.31",
+    "@standard-schema/spec": "^1.1.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@svmd/content": "workspace:*",
+    "@svmd/core": "workspace:*",
+    "@svmd/mdast-util-svelte": "workspace:*",
+    "@svmd/micromark-extension-svelte": "workspace:*",
+    "@svmd/shiki": "workspace:*",
+    "@types/estree": "^1.0.8",
+    "@types/hast": "^3.0.4",
+    "@types/mdast": "^4.0.4",
+    "@types/node": "^24.10.1",
+    "@vitest/coverage-v8": "^4.1.11",
+    "eslint": "^10.8.1",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
+    "mdast-util-from-markdown": "^2.0.3",
+    "micromark": "^4.0.2",
+    "prettier": "^3.9.6",
+    "publint": "^0.3.24",
+    "svelte": "^5.57.0",
+    "svmd": "workspace:*",
+    "tsdown": "^0.22.14",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0",
+    "unist-util-visit": "^5.1.0",
+    "vite": "^8.3.0",
+    "vitest": "^4.1.11"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
