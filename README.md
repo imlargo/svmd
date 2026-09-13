@@ -17,26 +17,6 @@
   TypeScript, HMR and source maps come from the same toolchain every Svelte project already uses.
 - Every error carries a line and column **in your `.md`**, never in generated code.
 
-## Behavior
-
-If you're coming from mdsvex, most of the syntax is familiar. The table below covers where the
-two diverge, since that matters more for choosing between them than a feature list would:
-
-| Case                                          | mdsvex                                            | svmd                                           |
-| --------------------------------------------- | ------------------------------------------------- | ---------------------------------------------- |
-| Markdown inside `<Callout>…</Callout>`        | not parsed (CommonMark's HTML block rule)         | parsed, with links and lists                   |
-| `use the {#if} block` in a sentence           | passed to Svelte as written                       | rendered as literal text                       |
-| `{ "name": "foo" }` pasted into prose         | passed to Svelte as written                       | rendered as literal text                       |
-| Two `<script>` blocks importing the same name | a duplicate declaration error                     | deduplicated automatically                     |
-| `<script lang="ts">` combined with a layout   | can conflict (mdsvex #485)                        | merged through the AST                         |
-| A fenced code block, seen by a remark plugin  | arrives as an `html` node (mdsvex #93)            | arrives as a `code` node, with `lang`/`meta`   |
-| An unclosed `{#if}`                           | reported by Svelte, on the generated file         | reported as `E001`, with the line it opened on |
-| Scoping to one folder                         | needs the global `extensions` array (mdsvex #241) | `include: ['src/content/**']`                  |
-
-Each row traces to a real case, most from mdsvex's own issue tracker. The full list is in
-[`SPEC.md` appendix C](./SPEC.md#c-mdsvex-issues-to-use-as-fixtures), and every one has a
-regression test in [`test/regressions.test.ts`](./test/regressions.test.ts).
-
 ## Install
 
 ```sh
@@ -90,6 +70,26 @@ Press the button: <Counter bind:count />
 ```
 
 No `svelte.config.js` to touch. No separate build step. No layout system of its own.
+
+## Behavior
+
+If you're coming from mdsvex, most of the syntax is familiar. The table below covers where the
+two diverge, since that matters more for choosing between them than a feature list would:
+
+| Case                                          | mdsvex                                            | svmd                                           |
+| --------------------------------------------- | ------------------------------------------------- | ---------------------------------------------- |
+| Markdown inside `<Callout>…</Callout>`        | not parsed (CommonMark's HTML block rule)         | parsed, with links and lists                   |
+| `use the {#if} block` in a sentence           | passed to Svelte as written                       | rendered as literal text                       |
+| `{ "name": "foo" }` pasted into prose         | passed to Svelte as written                       | rendered as literal text                       |
+| Two `<script>` blocks importing the same name | a duplicate declaration error                     | deduplicated automatically                     |
+| `<script lang="ts">` combined with a layout   | can conflict (mdsvex #485)                        | merged through the AST                         |
+| A fenced code block, seen by a remark plugin  | arrives as an `html` node (mdsvex #93)            | arrives as a `code` node, with `lang`/`meta`   |
+| An unclosed `{#if}`                           | reported by Svelte, on the generated file         | reported as `E001`, with the line it opened on |
+| Scoping to one folder                         | needs the global `extensions` array (mdsvex #241) | `include: ['src/content/**']`                  |
+
+Each row traces to a real case, most from mdsvex's own issue tracker. The full list is in
+[`SPEC.md` appendix C](./SPEC.md#c-mdsvex-issues-to-use-as-fixtures), and every one has a
+regression test in [`test/regressions.test.ts`](./test/regressions.test.ts).
 
 ## The grammar
 
