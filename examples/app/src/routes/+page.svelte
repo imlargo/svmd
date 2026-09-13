@@ -8,7 +8,7 @@
 	<h1 class="text-4xl font-semibold tracking-tight">svmd example</h1>
 	<p class="text-muted-foreground">
 		A minimal SvelteKit app, scaffolded with <code>sv create</code> and shadcn-svelte, wired to svmd.
-		The blog is the real demonstration — components, expressions, control blocks and syntax highlighting,
+		The blog does the demonstrating: components, expressions, control blocks and syntax highlighting,
 		all compiled from markdown.
 	</p>
 	<div class="flex justify-center gap-3">

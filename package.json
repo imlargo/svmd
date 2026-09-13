@@ -33,7 +33,7 @@
     "pack:check": "pnpm -r --filter './packages/*' exec publint && pnpm -r --filter './packages/*' exec attw --pack --profile esm-only",
     "smoke": "pnpm build && node scripts/smoke.mjs",
     "e2e": "node scripts/consumer-check.mjs",
-    "example": "pnpm --filter @svmd/example-kit-blog build",
+    "example": "pnpm --filter @svmd/example-app build",
     "prepare": "husky || true"
   },
   "devDependencies": {

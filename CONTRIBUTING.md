@@ -106,7 +106,7 @@ them, not all four.
 | `scripts/smoke.mjs`          | the **built** `dist/`, on the oldest Node    | a broken build, a dropped export, an `engines` claim     |
 | `scripts/consumer-check.mjs` | the **packed tarballs**, installed clean     | `exports` maps, `files` lists, peer ranges, missing deps |
 
-`examples/kit-blog` is the fifth: a real SvelteKit build that prerenders, run in CI.
+`examples/app` is the fifth: a real SvelteKit build that prerenders, run in CI.
 
 The reason the last two exist is that `test/` resolves `@svmd/core` to the source tree through a
 vitest alias. That makes the loop fast, and it means a broken `exports` map passes the suite in

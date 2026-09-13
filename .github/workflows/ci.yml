@@ -114,4 +114,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      # svelte-check first: it types the example's own use of @svmd/content
+      # against a real Zod schema, which `pnpm example`'s plain `vite build`
+      # does not — that gap is exactly how entry.data collapsing to `never`
+      # (test/content.test.ts) went unnoticed for as long as it did.
+      - run: pnpm --filter @svmd/example-app check
       - run: pnpm example

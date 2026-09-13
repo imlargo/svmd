@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Card, CardHeader, CardTitle, CardDescription } from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { resolve } from '$app/paths';
 
 	let { data } = $props();
 </script>
@@ -12,7 +13,7 @@
 
 	<div class="grid gap-4">
 		{#each data.posts as post (post.slug)}
-			<a href="/blog/{post.slug}">
+			<a href={resolve('/blog/[slug]', { slug: post.slug })}>
 				<Card class="transition-colors hover:bg-accent">
 					<CardHeader>
 						<CardTitle>{post.data.title}</CardTitle>

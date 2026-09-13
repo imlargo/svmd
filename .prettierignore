@@ -18,6 +18,8 @@ packages/mdast-util-svelte
 test/snapshots
 test/fixtures
 
-# Not ours to format.
-examples/**/.svelte-kit
-examples/**/build
+# The example app is a consumer, not part of the library (see eslint.config.js).
+# It has its own prettier.config.js with plugins (prettier-plugin-svelte,
+# prettier-plugin-tailwindcss) that only exist in its own node_modules, so the
+# root prettier instance cannot format it anyway.
+examples/**

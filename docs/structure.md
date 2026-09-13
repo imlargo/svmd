@@ -194,7 +194,8 @@ It survived because nothing exercised it:
 - the runtime tests never passed a schema **with types** attached;
 - `test/` was not in the `tsc` graph, so its type errors broke nothing — two were already sitting
   in `regressions.test.ts`;
-- `examples/kit-blog` does use Zod, but CI only runs `vite build`, which does not type-check.
+- the example app did use Zod, but CI only ran `vite build`, which does not type-check. (CI now
+  also runs `pnpm --filter @svmd/example-app check`, closing this specific gap.)
 
 Fix: the bound becomes `unknown`, and `DataOf` matches on the `schema` **property** rather than on
 the type parameter, so an absent schema falls back to `Record<string, unknown>`. A type-level test

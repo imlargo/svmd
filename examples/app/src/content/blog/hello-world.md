@@ -22,7 +22,7 @@ A real Svelte component, interactive, right inside the markdown:
 
 <Callout type="note">
 
-This is parsed as markdown **because it is markdown** — svmd's whole reason to exist is that a
+This is parsed as markdown because it is markdown. That is the whole reason svmd exists: a
 component's children get the same treatment as the rest of the page, not a block of opaque HTML.
 
 - a list
@@ -33,14 +33,14 @@ component's children get the same treatment as the rest of the page, not a block
 {#if tags.includes('svelte')}
 
 > This post is tagged `svelte`, so this blockquote renders. Try removing the tag from the
-> frontmatter above and reloading — the whole block disappears, the way an `{#if}` should.
+> frontmatter above and reloading: the whole block disappears, the way an `{#if}` should.
 
 {/if}
 
 ## Braces in prose
 
-Writing about Svelte syntax without triggering it is the actual hard problem markdown-to-Svelte
-compilers have. Type the word for a conditional block and it stays a word: {#if}. Close it the
+Writing about Svelte syntax without triggering it is the hard problem markdown-to-Svelte compilers
+have. Type the word for a conditional block and it stays a word: {#if}. Close it the
 same way: {/if}. A stray object pasted from somewhere, { "not": "an expression" }, stays text too.
 None of this is escaped by hand — svmd only accepts what parses as one real JavaScript expression,
 and prose never does.

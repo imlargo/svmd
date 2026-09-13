@@ -19,9 +19,9 @@ tags: [svelte, typescript]
 
 # {title}
 
-A typed `<script>` block, merged into the component's own script through the AST — not by
-concatenating strings, which is what breaks TypeScript in most markdown-to-Svelte tools the moment
-a layout is involved.
+A typed `<script>` block, merged into the component's own script through the AST, not by
+concatenating strings. String concatenation is what breaks TypeScript in most markdown-to-Svelte
+tools the moment a layout is involved.
 
 {#each features as feature (feature.name)}
 

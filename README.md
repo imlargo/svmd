@@ -393,14 +393,14 @@ and [`docs/structure.md`](./docs/structure.md).
 
 ## Example
 
-[`examples/kit-blog`](./examples/kit-blog) is a real SvelteKit site: frontmatter, a typed
+[`examples/app`](./examples/app) is a real SvelteKit site: frontmatter, a typed
 collection with Zod, an interactive component inside a post, prerendering. It builds in CI on
 every push, against the built `dist/` of every package rather than against source directly.
 
 ```sh
 git clone https://github.com/imlargo/svmd
 cd svmd && pnpm install
-pnpm --filter @svmd/example-kit-blog dev
+pnpm --filter @svmd/example-app dev
 ```
 
 ## Testing
@@ -414,7 +414,7 @@ Four lanes, each catching what the others structurally cannot:
 | `scripts/smoke.mjs`          | the **built** `dist/`, on the oldest supported Node | a broken build, a dropped export, a false `engines` claim                                               |
 | `scripts/consumer-check.mjs` | the packed **tarballs**, installed clean            | broken `exports` maps, missing `files`, peer ranges                                                     |
 
-`examples/kit-blog` is the fifth: a real SvelteKit build that prerenders, run in CI.
+`examples/app` is the fifth: a real SvelteKit build that prerenders, run in CI.
 
 ```sh
 pnpm check   # what CI runs: format check, lint, typecheck, build, test

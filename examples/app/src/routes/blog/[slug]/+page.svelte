@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
+	import { resolve } from '$app/paths';
 
 	let { data } = $props();
 	// The component is data, so it has to be a `$derived` local before it can be
@@ -11,7 +12,9 @@
 <svelte:head><title>{data.data.title}</title></svelte:head>
 
 <article class="mx-auto max-w-2xl space-y-6 px-6 py-12">
-	<a href="/blog" class="text-sm text-muted-foreground hover:underline">&larr; Back to blog</a>
+	<a href={resolve('/blog')} class="text-sm text-muted-foreground hover:underline"
+		>&larr; Back to blog</a
+	>
 
 	<div class="prose max-w-none prose-neutral dark:prose-invert">
 		<Content />

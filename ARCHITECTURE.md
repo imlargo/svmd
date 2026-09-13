@@ -530,7 +530,7 @@ svmd/
 ├── scripts/
 │   ├── smoke.mjs                    the built dist/, on the oldest Node
 │   └── consumer-check.mjs           the tarballs, installed clean
-├── examples/kit-blog/               the SvelteKit verification app
+├── examples/app/               the SvelteKit verification app
 └── .github/workflows/{ci,release}.yml
 ```
 
@@ -557,7 +557,7 @@ The suite is the executable specification. Every level is mandatory:
 | Performance | NF3, plus linearity and brace-heavy prose                                                | `test/performance.test.ts`                 |
 | Invariants  | the fixtures against micromark's _development_ build, which asserts token balance        | `test/assertions.test.ts`                  |
 | Typed API   | that `entry.data` infers from a collection's schema                                      | `test/content.test.ts`                     |
-| End-to-end  | a SvelteKit app that prerenders                                                          | `examples/kit-blog`                        |
+| End-to-end  | a SvelteKit app that prerenders                                                          | `examples/app`                             |
 
 Two further lanes exist because the suite above resolves `@svmd/core` to the source tree through a
 vitest alias, which makes the loop fast and means a broken `exports` map passes in green:
