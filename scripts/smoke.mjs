@@ -8,7 +8,7 @@
 import { compile, createCompiler, SvmdError } from '@svmd/core';
 import { createContent } from '@svmd/content';
 import { shikiHighlighter } from '@svmd/shiki';
-import { svmd } from 'svmd';
+import { svmd } from '@svmd/vite';
 import { svelteSyntax } from '@svmd/micromark-extension-svelte';
 import { svelteFromMarkdown } from '@svmd/mdast-util-svelte';
 
@@ -23,7 +23,7 @@ check('@svmd/core exports createCompiler', typeof createCompiler === 'function')
 check('@svmd/core exports SvmdError', typeof SvmdError === 'function');
 check('@svmd/content exports createContent', typeof createContent === 'function');
 check('@svmd/shiki exports shikiHighlighter', typeof shikiHighlighter === 'function');
-check('svmd exports the plugin', typeof svmd === 'function');
+check('@svmd/vite exports the plugin', typeof svmd === 'function');
 check('micromark extension is callable', typeof svelteSyntax === 'function');
 check('mdast extension is callable', typeof svelteFromMarkdown === 'function');
 

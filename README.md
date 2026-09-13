@@ -40,14 +40,14 @@ regression test in [`test/regressions.test.ts`](./test/regressions.test.ts).
 ## Install
 
 ```sh
-pnpm add -D svmd
+pnpm add -D @svmd/vite
 ```
 
 Requires Svelte 5+, Vite 6+ and `@sveltejs/vite-plugin-svelte`.
 
 ```js
 // vite.config.js
-import { svmd } from 'svmd';
+import { svmd } from '@svmd/vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 export default {
@@ -376,7 +376,7 @@ the workspace. See [`scripts/consumer-check.mjs`](./scripts/consumer-check.mjs).
 
 | Package                                     | What it is                                                |
 | ------------------------------------------- | --------------------------------------------------------- |
-| `svmd`                                      | the Vite plugin                                           |
+| `@svmd/vite`                                | the Vite plugin                                           |
 | `@svmd/core`                                | the compiler: `compile(source) → { code, map, metadata }` |
 | `@svmd/shiki`                               | Shiki highlighting, as an optional adapter                |
 | `@svmd/content`                             | collections over `import.meta.glob`                       |

@@ -34,7 +34,7 @@
       "@svmd/core": ["./packages/core/src/index.ts"],
       "@svmd/content": ["./packages/content/src/index.ts"],
       "@svmd/shiki": ["./packages/shiki/src/index.ts"],
-      "svmd": ["./packages/svmd/src/index.ts"]
+      "@svmd/vite": ["./packages/vite/src/index.ts"]
     }
   },
   "include": ["packages/*/src", "packages/*/*.config.ts", "test/**/*.ts", "scripts", "*.config.ts"],

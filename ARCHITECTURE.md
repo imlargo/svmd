@@ -18,7 +18,7 @@ A purpose-built `markdown → Svelte 5 source` compiler, shipped as a Vite plugi
 | `@svmd/mdast-util-svelte`                   | Tokens → MDAST nodes, plus block tree construction              | the above           |
 | `@svmd/core`                                | The whole pipeline: `compile(source) → { code, map, metadata }` | the above + unified |
 | `@svmd/shiki`                               | Shiki highlighting, as an optional adapter                      | `@svmd/core`        |
-| `svmd`                                      | The Vite plugin: scoping, resolution, HMR                       | `@svmd/core`        |
+| `@svmd/vite`                                | The Vite plugin: scoping, resolution, HMR                       | `@svmd/core`        |
 | `@svmd/content`                             | A minimal collections layer (spec §9)                           | nothing             |
 
 The split answers R5/§7.2: the micromark extension is useful in isolation, and is the natural
@@ -322,13 +322,13 @@ counted.
 
 ### Other open questions from the spec
 
-|                              | Decision                                                               |
-| ---------------------------- | ---------------------------------------------------------------------- |
-| **Q1** name                  | `svmd` (the main package), `@svmd/*` (the rest)                        |
-| **Q2** preprocessor          | No. Vite plugin only. A preprocessor reintroduces CR1                  |
-| **Q4** `.svx`                | Not by default; reachable with `include: ['**/*.svx']`                 |
-| **Q5** explicit escape       | No new syntax needed: I3 covers prose, and `{'{'}` is the escape hatch |
-| **Q7** migration from mdsvex | Out of scope for v1                                                    |
+|                              | Decision                                                                                                                |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Q1** name                  | `@svmd/vite` (the Vite plugin), `@svmd/*` (the rest) — unscoped `svmd` was already taken on npm by an unrelated package |
+| **Q2** preprocessor          | No. Vite plugin only. A preprocessor reintroduces CR1                                                                   |
+| **Q4** `.svx`                | Not by default; reachable with `include: ['**/*.svx']`                                                                  |
+| **Q5** explicit escape       | No new syntax needed: I3 covers prose, and `{'{'}` is the escape hatch                                                  |
+| **Q7** migration from mdsvex | Out of scope for v1                                                                                                     |
 
 ---
 
@@ -519,7 +519,7 @@ svmd/
 │   │                                names.ts
 │   ├── shiki/                                 highlighting adapter  [I12]
 │   │   └── src/index.ts
-│   ├── svmd/                                  the Vite plugin
+│   ├── vite/                                   the Vite plugin
 │   │   └── src/index.ts                                             [I10]
 │   └── content/                               runtime, zero deps
 │       └── src/index.ts                                             [D8]
@@ -530,11 +530,11 @@ svmd/
 ├── scripts/
 │   ├── smoke.mjs                    the built dist/, on the oldest Node
 │   └── consumer-check.mjs           the tarballs, installed clean
-├── examples/app/               the SvelteKit verification app
+├── examples/app/                              the SvelteKit verification app
 └── .github/workflows/{ci,release}.yml
 ```
 
-The four TypeScript packages (`core`, `shiki`, `svmd`, `content`) are built with **tsdown**, one
+The four TypeScript packages (`core`, `shiki`, `vite`, `content`) are built with **tsdown**, one
 at a time and in topological order. The three forks are not built: they publish their JavaScript
 as it stands, the way upstream does, and their public declarations are hand-written in each
 package's root `index.d.ts` — see [CONTRIBUTING.md](./CONTRIBUTING.md#the-forks) for why.

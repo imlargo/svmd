@@ -37,7 +37,7 @@ try {
     join(root, 'vite.config.js'),
     [
       "import { svelte } from '@sveltejs/vite-plugin-svelte';",
-      "import { svmd } from 'svmd';",
+      "import { svmd } from '@svmd/vite';",
       '',
       'export default {',
       "  plugins: [svmd({ include: ['src/content/**/*.md'], rawComponents: ['Code'] }), svelte()],",

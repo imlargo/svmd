@@ -7,7 +7,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { svmd, type SvmdOptions } from 'svmd';
+import { svmd, type SvmdOptions } from '@svmd/vite';
 import { build, type Rollup } from 'vite';
 import { afterAll, describe, expect, it } from 'vitest';
 

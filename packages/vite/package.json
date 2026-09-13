@@ -1,5 +1,5 @@
 {
-  "name": "svmd",
+  "name": "@svmd/vite",
   "version": "0.1.0",
   "type": "module",
   "license": "MIT",
@@ -25,7 +25,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/imlargo/svmd.git",
-    "directory": "packages/svmd"
+    "directory": "packages/vite"
   },
   "author": "imlargo",
   "sideEffects": false,

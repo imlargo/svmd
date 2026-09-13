@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { svmd } from 'svmd';
+import { svmd } from '@svmd/vite';
 import { shikiHighlighter } from '@svmd/shiki';
 
 export default defineConfig({

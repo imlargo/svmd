@@ -15,7 +15,7 @@ audiences are what determine the package boundaries:
 
 | Audience              | Share | Installs                | Needs                             |
 | --------------------- | ----- | ----------------------- | --------------------------------- |
-| Application dev       | ~99%  | `svmd`                  | the Vite plugin + runtime helpers |
+| Application dev       | ~99%  | `@svmd/vite`            | the Vite plugin + runtime helpers |
 | Tool author           | ~1%   | `@svmd/core`            | `compile()` with no Vite involved |
 | The unified ecosystem | rare  | `micromark-…`/`mdast-…` | the grammar without the compiler  |
 
@@ -38,7 +38,7 @@ This shape has already converged. The four tiers are the same everywhere:
 | ----------- | ------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------- |
 | grammar     | `micromark-extension-svelte`, `mdast-util-svelte` | `micromark-extension-mdx-jsx`, `mdast-util-mdx-jsx` | a parser of their own                                |
 | compiler    | `@svmd/core`                                      | `@mdx-js/mdx`                                       | `svelte/compiler`, `@vue/compiler-sfc`               |
-| integration | `svmd`                                            | `@mdx-js/rollup`, `/esbuild`, `/loader`             | `@sveltejs/vite-plugin-svelte`, `@vitejs/plugin-vue` |
+| integration | `@svmd/vite`                                      | `@mdx-js/rollup`, `/esbuild`, `/loader`             | `@sveltejs/vite-plugin-svelte`, `@vitejs/plugin-vue` |
 | runtime     | `@svmd/content`                                   | `@mdx-js/react`, `/preact`, `/vue`                  | `svelte`, `vue`                                      |
 
 ---
@@ -57,7 +57,7 @@ This shape has already converged. The four tiers are the same everywhere:
                  @svmd/core ─────────────────-┘
                  │        ▲
                  │        │ (the Highlighter interface only)
-            svmd │        │
+      @svmd/vite │        │
                  │   @svmd/shiki ──peer──> shiki
                  └──peer──> vite, @sveltejs/vite-plugin-svelte, svelte
 
@@ -99,8 +99,8 @@ then guaranteed by construction rather than by resemblance.
 
 ### D4 — A package's directory is named after the package
 
-`packages/vite-plugin/` published as `svmd`, so it is now `packages/svmd/`. That name is what
-`pnpm --filter` takes, what appears in stack traces, and what you type when you grep.
+`packages/vite-plugin/` published as `@svmd/vite`, so it is now `packages/vite/`. That name is
+what `pnpm --filter` takes, what appears in stack traces, and what you type when you grep.
 
 ### D5 — `core`'s folders are the pipeline's stages
 
@@ -137,12 +137,14 @@ against upstream unreadable, and that diff is **the single most important mainte
 this repository**. They also keep upstream's own `tsconfig.json` rather than the stricter one used
 everywhere else, for the same reason.
 
-### D8 — Scope everything as `@svmd/*`, except the product
+### D8 — Scope everything as `@svmd/*`
 
 An unscoped `micromark-extension-*` reads as "blessed by the micromark org", and this is a
-third-party fork. Scoping also keeps trusted-publishing configuration in one org. `svmd` is
-unscoped because it is the product's name. It is reversible: publishing an unscoped alias later
-breaks nothing.
+third-party fork. Scoping also keeps trusted-publishing configuration in one org. The Vite plugin
+was meant to be unscoped, as the product's name — but unscoped `svmd` was already taken on npm by
+an unrelated, unmaintained package, so it publishes as `@svmd/vite` like everything else. Nothing
+in the design depended on that package being unscoped; it is reversible either way, since
+publishing an unscoped alias later breaks nothing.
 
 ### D9 — One version, one tag, one changelog
 

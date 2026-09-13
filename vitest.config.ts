@@ -13,7 +13,7 @@ export default defineConfig({
       '@svmd/content': source('content'),
       '@svmd/core': source('core'),
       '@svmd/shiki': source('shiki'),
-      svmd: source('svmd'),
+      '@svmd/vite': source('vite'),
     },
   },
   test: {
