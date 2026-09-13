@@ -123,18 +123,34 @@ export function svmd(options: SvmdOptions = {}): Plugin {
       // string alone, running in place of this plugin's `load` below. The
       // shadow id is not a real file, so that read always throws `ENOENT`, on
       // every markdown file imported from a `<script>` — statically, the way
-      // `svmd/content` never does, but a plain `import Post from './x.md'`
-      // does. `external: true` is what the scanner itself falls back to
-      // whenever it cannot safely introspect an import (an asset, a CSS file,
-      // a bare specifier already resolved); doing the same here just stops the
-      // scan at this module instead of crashing it. A dependency reachable
-      // only through one markdown file's own `<script>` gets pre-bundled on
-      // first request rather than eagerly — the one cost, and it is invisible
-      // past a single extra reload in dev.
-      const scanning = this.environment.mode === 'scan';
+      // `svmd/content` never does, but a plain `import Post from './x.md'` does.
+      //
+      // `this.environment.mode` is *not* the way to detect this: the scanner
+      // runs its own bundled mini-plugins in a dedicated `scan` environment,
+      // but it calls out to registered plugins like this one through the real
+      // dev/build environment, so `this.environment.mode` there still reads
+      // `'dev'` — confirmed by logging it live against this exact repro. The
+      // reliable signal is `resolveOptions.scan`: not in Vite's public
+      // `ResolveIdOptions` type, but a real field on the object every
+      // `resolveId` call carries while scanning, and the documented way
+      // framework plugins are known to detect this phase in practice.
+      //
+      // Returning `{ external: true }` here is not enough: Vite's own
+      // scan-only resolver (`vite:dep-scan:resolve`) calls out to this hook,
+      // but then collapses whatever it returns to a bare id string before
+      // deciding — on its own, from that id's extension alone — whether the
+      // import is worth following further. A `.svelte`-suffixed id reads as
+      // "yes" regardless of `external`, straight into the same disk read.
+      // Not adding the suffix in the first place is what actually works: the
+      // real `.md` path that comes back doesn't match any extension the
+      // scanner treats specially, so *its* check is the one that stops here.
+      // A dependency reachable only through one markdown file's own
+      // `<script>` gets pre-bundled on first request rather than eagerly —
+      // the one cost, and it is invisible past a single extra reload in dev.
+      const scanning = (resolveOptions as { scan?: boolean }).scan === true;
 
       if (source.endsWith(SUFFIX)) {
-        return scanning ? { id: source, external: true } : source;
+        return scanning ? null : source;
       }
 
       const { path, query } = splitId(source);
@@ -147,10 +163,9 @@ export function svmd(options: SvmdOptions = {}): Plugin {
       if (!resolved || resolved.external) return resolved;
 
       const target = splitId(resolved.id);
-      if (!filter(target.path)) return resolved;
+      if (!filter(target.path) || scanning) return resolved;
 
-      const id = target.path + SUFFIX + target.query;
-      return scanning ? { id, external: true } : { ...resolved, id };
+      return { ...resolved, id: target.path + SUFFIX + target.query };
     },
 
     async load(id) {
