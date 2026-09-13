@@ -74,7 +74,8 @@ jobs:
       # `pnpm publish -r` walks the workspace in dependency order and rewrites
       # every `workspace:*` to the version being published, so a consumer never
       # sees a protocol npm cannot resolve.
-      - run: pnpm publish -r --access public --no-git-checks
+      - name: Publish to npm
+        run: pnpm publish -r --access public --no-git-checks
 
       # A tag on its own renders as an empty page, so anyone arriving from a
       # changelog link or the npm sidebar sees nothing. The entry the step above
