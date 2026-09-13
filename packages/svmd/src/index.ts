@@ -116,7 +116,26 @@ export function svmd(options: SvmdOptions = {}): Plugin {
     },
 
     async resolveId(source, importer, resolveOptions) {
-      if (source.endsWith(SUFFIX)) return source;
+      // Vite's dependency scanner treats any resolved id ending in `.svelte` (or
+      // `.html`, `.vue`, `.astro`, `.imba`) as a real file and reads it straight
+      // off disk to pull out its `<script>` block for the deps it imports —
+      // that's `htmlTypesRE` in Vite's own scanner, matched against the id
+      // string alone, running in place of this plugin's `load` below. The
+      // shadow id is not a real file, so that read always throws `ENOENT`, on
+      // every markdown file imported from a `<script>` — statically, the way
+      // `svmd/content` never does, but a plain `import Post from './x.md'`
+      // does. `external: true` is what the scanner itself falls back to
+      // whenever it cannot safely introspect an import (an asset, a CSS file,
+      // a bare specifier already resolved); doing the same here just stops the
+      // scan at this module instead of crashing it. A dependency reachable
+      // only through one markdown file's own `<script>` gets pre-bundled on
+      // first request rather than eagerly — the one cost, and it is invisible
+      // past a single extra reload in dev.
+      const scanning = this.environment.mode === 'scan';
+
+      if (source.endsWith(SUFFIX)) {
+        return scanning ? { id: source, external: true } : source;
+      }
 
       const { path, query } = splitId(source);
       if (!hasKnownExtension(path, extensions) || isPassthrough(query)) return null;
@@ -130,7 +149,8 @@ export function svmd(options: SvmdOptions = {}): Plugin {
       const target = splitId(resolved.id);
       if (!filter(target.path)) return resolved;
 
-      return { ...resolved, id: target.path + SUFFIX + target.query };
+      const id = target.path + SUFFIX + target.query;
+      return scanning ? { id, external: true } : { ...resolved, id };
     },
 
     async load(id) {
