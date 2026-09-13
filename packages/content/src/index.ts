@@ -9,6 +9,7 @@
  */
 
 import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { Component } from 'svelte';
 
 /**
  * Re-exported so a caller can name the type without adding the dependency. The
@@ -17,9 +18,17 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
  */
 export type { StandardSchemaV1 };
 
-/** What a compiled `.md` module exports. */
+/**
+ * What a compiled `.md` module exports.
+ *
+ * `import type { Component } from 'svelte'` costs nothing at runtime — it is
+ * erased entirely, the same as the `@standard-schema/spec` import above — so
+ * this stays true to zero runtime dependencies while letting a caller use
+ * `entry.load()`'s `default` directly as a component, `<Content />`, instead
+ * of casting away from `unknown` themselves on every call site.
+ */
 export interface ContentModule<Data> {
-  default: unknown;
+  default: Component<Record<string, never>>;
   metadata: Data;
 }
 
