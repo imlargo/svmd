@@ -13,4 +13,24 @@ outside does not get a line here — the git history already has it.
 
 ## [Unreleased]
 
-Nothing has been published yet. The first release will fold this section into `## [0.1.0]`.
+## [0.1.0] - 2026-09-13
+
+### Added
+
+- `@svmd/vite`: a Vite plugin that compiles markdown to Svelte 5 source. Components, expressions,
+  control blocks and directives are tokens the parser recognizes, not patterns matched after the
+  markdown is already parsed.
+- Markdown parses inside components by default, so wrapping a paragraph in `<Callout>` does not
+  stop it from parsing; `rawComponents` opts a component out.
+- Deny-by-default braces: a bare `{...}` becomes a Svelte expression only if it parses as one
+  complete, non-object, non-sequence JS expression. `use the {#if} block` and a pasted JSON object
+  in prose render as literal text instead of breaking the build.
+- `@svmd/core`: the compiler on its own — `compile()` and `createCompiler()` — for tool authors who
+  need the pipeline without Vite.
+- `@svmd/shiki`: an optional Shiki `Highlighter` adapter.
+- `@svmd/content`: a collections layer over `import.meta.glob`, with typed frontmatter through any
+  Standard Schema validator (Zod, Valibot, ArkType).
+- `@svmd/micromark-extension-svelte`, `@svmd/mdast-util-svelte`,
+  `@svmd/micromark-factory-svelte-expression`: the grammar and its brace-balancing factory,
+  published standalone for a Prettier plugin, an ESLint parser, or an LSP for this dialect.
+- Every diagnostic carries a line and column in the source `.md` file, never in generated code.
