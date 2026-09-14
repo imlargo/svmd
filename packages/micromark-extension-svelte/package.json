@@ -1,9 +1,9 @@
 {
   "name": "@svmd/micromark-extension-svelte",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "license": "MIT",
-  "description": "micromark extension for Svelte syntax in markdown \u2014 fork of micromark-extension-mdx-jsx",
+  "description": "micromark extension for Svelte syntax in markdown — fork of micromark-extension-mdx-jsx",
   "files": [
     "index.js",
     "index.d.ts",

@@ -13,6 +13,15 @@ outside does not get a line here — the git history already has it.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-13
+
+### Added
+
+- `@svmd/vite/client`: an ambient `declare module '*.md'`, so a static
+  `import Post, { metadata } from './post.md'` type-checks with a one-line
+  `/// <reference types="@svmd/vite/client" />`, instead of every project writing that
+  declaration itself.
+
 ## [0.1.1] - 2026-09-13
 
 ### Fixed

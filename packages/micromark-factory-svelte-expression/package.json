@@ -1,9 +1,9 @@
 {
   "name": "@svmd/micromark-factory-svelte-expression",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "license": "MIT",
-  "description": "micromark factory to parse a Svelte expression \u2014 fork of micromark-factory-mdx-expression",
+  "description": "micromark factory to parse a Svelte expression — fork of micromark-factory-mdx-expression",
   "files": [
     "index.js",
     "types/",

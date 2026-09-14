@@ -37,6 +37,16 @@ export default {
 };
 ```
 
+TypeScript, once, anywhere already in the program (`src/app.d.ts` in a SvelteKit project):
+
+```ts
+/// <reference types="@svmd/vite/client" />
+```
+
+so `import Post, { metadata } from './post.md'` type-checks. Compiling a different extension
+through `include` needs the same `declare module` block under that extension instead — see
+`@svmd/vite/client`'s source for the one to copy.
+
 ## Usage
 
 ```md

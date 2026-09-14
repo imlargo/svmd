@@ -1,7 +1,7 @@
 {
   "name": "svmd-monorepo",
   "type": "module",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Markdown compiled to Svelte 5 components, as a Vite plugin",
   "license": "MIT",
