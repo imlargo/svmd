@@ -23,3 +23,7 @@ test/fixtures
 # prettier-plugin-tailwindcss) that only exist in its own node_modules, so the
 # root prettier instance cannot format it anyway.
 examples/**
+
+# Same story as examples/**: its own prettier.config.js pulls in
+# prettier-plugin-svelte, which only exists in its own node_modules.
+coral/**
