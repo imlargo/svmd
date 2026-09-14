@@ -13,6 +13,13 @@ outside does not get a line here — the git history already has it.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-13
+
+### Fixed
+
+- `@svmd/vite`, `@svmd/core`, `@svmd/content` had no `description` in their `package.json`, so
+  their npm listing showed a blank summary. All packages now have one.
+
 ## [0.1.0] - 2026-09-13
 
 ### Added

@@ -1,7 +1,8 @@
 {
   "name": "@svmd/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
+  "description": "The markdown-to-Svelte-5 compiler behind @svmd/vite, usable standalone",
   "license": "MIT",
   "files": [
     "dist",
