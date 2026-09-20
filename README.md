@@ -126,8 +126,7 @@ two diverge, since that matters more for choosing between them than a feature li
 | An unclosed `{#if}`                           | reported by Svelte, on the generated file         | reported as `E001`, with the line it opened on |
 | Scoping to one folder                         | needs the global `extensions` array (mdsvex #241) | `include: ['src/content/**']`                  |
 
-Each row traces to a real case, most from mdsvex's own issue tracker. The full list is in
-[`SPEC.md` appendix C](./SPEC.md#c-mdsvex-issues-to-use-as-fixtures), and every one has a
+Each row traces to a real case, most from mdsvex's own issue tracker, and every one has a
 regression test in [`test/regressions.test.ts`](./test/regressions.test.ts).
 
 ## The grammar
@@ -427,8 +426,7 @@ The last three are forks of the micromark extensions MDX uses, their test suites
 are useful on their own to anyone who wants to parse Svelte syntax inside markdown: a Prettier
 plugin, an ESLint parser, an LSP for this dialect. None of them need the compiler.
 
-Architecture and the reasoning behind the package split: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
-and [`docs/structure.md`](./docs/structure.md).
+Architecture and the reasoning behind the package split: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
 ## Example
 

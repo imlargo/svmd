@@ -1,15 +1,9 @@
-# Implementation architecture — `svmd`
+# Architecture
 
-> An engineering document. It complements [`SPEC.md`](./SPEC.md): the spec defines _what_ and
-> _why_; this defines _how_, and records the decisions the spec left open.
->
-> **Status:** implemented · v0.1
+How `svmd` turns markdown into Svelte 5 component source, and how the repository is organized
+around that.
 
----
-
-## 0. The decision in summary
-
-A purpose-built `markdown → Svelte 5 source` compiler, shipped as a Vite plugin, in seven pieces:
+## Packages
 
 | Package                                     | Responsibility                                                  | Depends on          |
 | ------------------------------------------- | --------------------------------------------------------------- | ------------------- |
@@ -19,109 +13,142 @@ A purpose-built `markdown → Svelte 5 source` compiler, shipped as a Vite plugi
 | `@svmd/core`                                | The whole pipeline: `compile(source) → { code, map, metadata }` | the above + unified |
 | `@svmd/shiki`                               | Shiki highlighting, as an optional adapter                      | `@svmd/core`        |
 | `@svmd/vite`                                | The Vite plugin: scoping, resolution, HMR                       | `@svmd/core`        |
-| `@svmd/content`                             | A minimal collections layer (spec §9)                           | nothing             |
+| `@svmd/content`                             | A minimal collections layer over `import.meta.glob`             | nothing             |
 
-The split answers R5/§7.2: the micromark extension is useful in isolation, and is the natural
-surface for outside contributions. Why the boundaries fall exactly there is in
-[`docs/structure.md`](./docs/structure.md).
+Package boundaries follow dependency boundaries, not layers. `@svmd/shiki` is separate because it
+has a different peer dependency (`shiki`) than `core`. `@svmd/content` is separate because it runs
+in the browser and stays at zero runtime dependencies. `core`, `shiki` and `vite` never point
+"upward": `core` does not know Vite exists, and `content` touches neither.
 
----
+The three grammar packages (`micromark-factory-svelte-expression`, `micromark-extension-svelte`,
+`mdast-util-svelte`) are published on their own because each one's public surface is a single
+function whose shape micromark or mdast dictates, not us. Anyone writing a Prettier plugin, an
+ESLint parser, or an LSP for this dialect needs exactly those packages and none of the compiler.
 
-## 1. Implementation decisions
+```
+                      @standard-schema/spec  (types only, external)
+                         │                    │
+    micromark-factory-svelte-expression       │
+                         │                    │
+            micromark-extension-svelte        │
+                    │                         │
+             mdast-util-svelte                │
+                    │                         │
+                 @svmd/core ─────────────────-┘
+                 │        ▲
+                 │        │ (the Highlighter interface only)
+      @svmd/vite │        │
+                 │   @svmd/shiki ──peer──> shiki
+                 └──peer──> vite, @sveltejs/vite-plugin-svelte, svelte
 
-These add to, or refine, decisions D1–D8 in the spec. Each carries its reason.
+    @svmd/content  ── zero runtime dependencies ──> (@standard-schema/spec, types only)
+```
 
-### I1 — Fork the MDX extensions, neither depend on them nor reimplement them (refines D4)
+## The forks
 
-**Decision:** `micromark-extension-mdx-jsx`, `micromark-factory-mdx-expression` and
-`mdast-util-mdx-jsx` are forked into this repository, with their JavaScript, their JSDoc types,
-their state names and their tests. The first commit of each is upstream's source untouched, so
-every later change is a reviewable diff.
+`packages/micromark-extension-svelte`, `packages/micromark-factory-svelte-expression` and
+`packages/mdast-util-svelte` are forks of Titus Wormer's MDX packages
+(`micromark-extension-mdx-jsx`, `micromark-factory-mdx-expression`, `mdast-util-mdx-jsx`), with
+their JavaScript, JSDoc types, state names and tests. `FORK.md` in each package records the
+upstream commit and every divergence, with its reason.
 
-**Reason.** Three things Svelte needs cannot be reached through configuration:
+They are forked rather than depended on because three things Svelte needs cannot be reached
+through configuration of the upstream packages:
 
-1. **The failure policy is inverted.** Upstream throws on a malformed tag or an unclosed brace,
-   and it is right to: in MDX that is always an authoring error. In markdown, `a < b` and
-   `use the {#if} block` are prose. Every dead end has to become `nok` so micromark can backtrack
-   — that touches the core of every state, and is not an option you can pass.
-2. **Directives are not JSX.** The `|` in `transition:fade|local` is not valid in a JSX attribute
-   name, and F10 is a _Must_. Neither is `--accent="#f00"`, nor unquoted values.
-3. **Quoted values interpolate.** `class="a {b} c"` is Svelte; in JSX a quote is opaque text.
+- **The failure policy is inverted.** Upstream throws on a malformed tag or an unclosed brace,
+  which is correct for JSX. In markdown, `a < b` and `use the {#if} block` are prose, so every dead
+  end has to become a backtrack (`nok`) instead of a throw — that touches the core of most states.
+- **Directives are not JSX.** `transition:fade|local`'s `|`, and unquoted or `--`-prefixed
+  attribute names, are not valid JSX.
+- **Quoted attribute values interpolate.** `class="a {b} c"` is Svelte; in JSX a quoted value is
+  opaque text.
 
-**Rejected — depending on them unmodified:** impossible, for the three reasons above.
+They are forked rather than reimplemented because the upstream tag tokenizer already handles a
+long tail of edge cases (Unicode identifiers, ES whitespace, quotes, members, namespaces) backed
+by roughly 7000 lines of tests, all of which the fork inherits.
 
-**Rejected — reimplementing from scratch:** this was the first attempt, and it was thrown away.
-The tag tokenizer is 1104 lines of edge cases (Unicode identifiers, ES whitespace, quotes, members
-and namespaces) and, above all, **7000 lines of tests**. Rewriting it means rediscovering by hand
-what upstream already knows. The fork inherits both.
+The forks are excluded from ESLint and Prettier, and keep upstream's `tsconfig.json`, file names
+and `test/*.js` suites: reformatting them would make future diffs against upstream unreadable,
+and that diff is the property that makes pulling in an upstream fix possible at all. Their public
+types are hand-written in each package's root `index.d.ts` rather than generated from JSDoc,
+because JSDoc-generated declarations land in `types/`, which is unreachable from the package root
+and silently resolves re-exports to `any`.
 
-**What is not forked:** `micromark-util-events-to-acorn` needs no change at all, so it is a
-dependency. Forking what you do not modify is free debt.
+`micromark-util-events-to-acorn` is used unforked, since nothing about it needs to change.
 
-**Cost accepted:** maintaining ~2000 lines of someone else's code, including parts we do not use.
-Mitigated by [`FORK.md`](./packages/micromark-extension-svelte/FORK.md), which records the exact
-upstream commit and every divergence with its reason, and by upstream's own suites, which run
-here: 161 tests, with every case whose behaviour changed still in place, rewritten to assert the
-new one with the why beside it.
+## Pipeline
 
-### I2 — acorn only where there is real ambiguity
+```
+ .md on disk
+      │
+      ▼  svmd (Vite, enforce: 'pre')
+      │  include/exclude filter → shadow id (see "Vite integration" below)
+      │
+      ▼  @svmd/core · compile()
+      │
+      ├─ 1. frontmatter        micromark-extension-frontmatter + yaml (YAML 1.2 core schema)
+      │
+      ├─ 2. parse              micromark + @svmd/micromark-extension-svelte
+      │                        (CommonMark's htmlFlow/htmlText are disabled)
+      │
+      ├─ 3. from-markdown      @svmd/mdast-util-svelte → MDAST
+      │
+      ├─ 4. transform          block and tag tree construction, nesting validation (E001–E005)
+      │                        <script>/<style> extraction
+      │
+      ├─ 5. remarkPlugins      the user's — fenced code arrives as a real `code` node
+      │
+      ├─ 6. mdast → hast       remark-rehype, passing svelte* nodes through
+      │
+      ├─ 7. rehypePlugins      the user's
+      │
+      ├─ 8. highlight          optional (off by default; see "Highlighting" below)
+      │
+      ├─ 9. generate           hast → Svelte source, via SourceBuilder
+      │                        brace escaping in text/raw content
+      │
+      └─ 10. scripts           AST-guided merge, frontmatter bindings, metadata
+      │
+      ▼  { code: <.svelte source>, map, metadata }
+      │
+      ▼  @sveltejs/vite-plugin-svelte  →  JS + CSS
+```
 
-The key observation: balancing braces and parsing JavaScript are separate problems.
+### Brace handling
 
-- **Delimiting** `{...}` correctly (knowing strings, templates, comments and regexes) is a
-  **lexical** problem. It is solved by a purpose-built state scanner, `factoryBraced`, running
-  inside micromark's machine character by character. No acorn, no reserialisation, O(n).
-- **Deciding whether `{something}` is an expression or prose** is a **syntactic** problem. That is
-  where acorn belongs.
+Balancing `{...}` (finding the matching close, aware of strings, templates, comments and regexes)
+is a lexical problem, solved by `factoryBraced`, a purpose-built state scanner that runs inside
+micromark character by character — no parser, no reserialization, linear time.
 
-The division:
+Deciding whether a bare `{something}` in prose is a Svelte expression or literal text is a
+different, syntactic problem, solved with `acorn`. A bare `{…}` is accepted as an expression only
+if all of the following hold:
 
-| Context                                  | Delimiting      | Validation                         |
-| ---------------------------------------- | --------------- | ---------------------------------- |
-| A bare `{expr}` in flow or text          | `factoryBraced` | **acorn** (D5)                     |
-| `{#if expr}`, `{:else if expr}`, `{/if}` | `factoryBraced` | none — the context is unambiguous  |
-| `{@html expr}`, `{@const …}`             | `factoryBraced` | none                               |
-| `attr={expr}`, `{...spread}`             | `factoryBraced` | none — we are already inside a tag |
+1. The scanner finds the closing brace without crossing a blank line.
+2. `acorn.parseExpressionAt` parses it completely, with nothing left over.
+3. The parsed expression is not an `ObjectExpression`, a `SequenceExpression`, or empty.
 
-**Why blocks are not validated with acorn:** `{#each items as item, i (item.id)}` and
-`{#snippet row(a, b)}` are not JavaScript expressions. Validating them would mean reimplementing
-Svelte's parser, which changes every release (R1/R2). Delimiting them correctly is enough: the
-semantic error comes from the Svelte compiler, and thanks to NF1 it points at the `.md` line.
+| Prose input                        | Why                                    | Result            |
+| ---------------------------------- | -------------------------------------- | ----------------- |
+| `use the {#if} block in your code` | `#` never opens an expression in text  | escaped, literal  |
+| `{ "name": "foo" }`                | rejected as an `ObjectExpression`      | escaped, literal  |
+| `put {a, b} here`                  | rejected as a `SequenceExpression`     | escaped, literal  |
+| `a { stray unclosed one`           | no closing brace before EOF/blank line | escaped, literal  |
+| `{price}`                          | a plain identifier expression          | Svelte expression |
+| `{items.length}`                   | a plain member expression              | Svelte expression |
 
-Side effect: acorn almost never runs — prose rarely contains braces — which leaves ample room
-under NF3.
+`{({ a: 1 })}` is the escape hatch for an object literal: acorn runs with `preserveParens: true`,
+so the root node is a `ParenthesizedExpression` rather than an `ObjectExpression`.
 
-### I3 — The prose-expression disambiguation rule (makes D5 concrete)
+Block clauses (`{#each items as item, i (item.id)}`, `{#snippet row(a, b)}`) are not validated
+with acorn, because they are not JavaScript expressions — validating them would mean
+reimplementing Svelte's own parser. Delimiting them correctly is enough; a semantic error there
+comes from the Svelte compiler itself, pointed at the right `.md` line via source maps.
 
-A bare `{…}` in text or flow context is accepted **only if**:
+### Control blocks and tags
 
-1. The scanner finds the closing brace **without crossing a blank line**.
-2. `acorn.parseExpressionAt` parses it **completely**, with nothing left over.
-3. The root node is **not** an `ObjectExpression`, a `SequenceExpression`, or empty.
-
-Rule 3 is what makes D5's table hold:
-
-| Prose input                        | Rule that rejects it                  | Result            |
-| ---------------------------------- | ------------------------------------- | ----------------- |
-| `use the {#if} block in your code` | `#` never opens an expression in text | `&#123;#if&#125;` |
-| `{ "name": "foo" }`                | 3 — `ObjectExpression`                | escaped           |
-| `put {a, b} here`                  | 3 — `SequenceExpression`              | escaped           |
-| `a { stray unclosed one`           | 1 — EOF or blank line                 | escaped           |
-| `{price}`                          | — accepted                            | Svelte expression |
-| `{items.length}`                   | — accepted                            | Svelte expression |
-
-A documented escape hatch: `{({ a: 1 })}` forces an object literal (acorn runs with
-`preserveParens: true`, so the root node is a `ParenthesizedExpression`).
-
-Every rejection is **silent and lossless**: micromark backtracks and the text survives literally,
-to be escaped later. There is no error, because nothing is broken.
-
-### I4 — Control blocks: flat markers, tree built afterwards
-
-Writing a _container_ in micromark — something that wraps flow — is the hardest and most fragile
-part of its API. **It is not done.**
-
-The extension emits flat markers at the flow level:
+The micromark extension emits flat markers at the flow level rather than building a nested tree
+directly — writing a container in micromark is the hardest and most fragile part of its API:
 
 ```
 {#if a}      → svelteBlockOpen
@@ -131,18 +158,13 @@ text         → paragraph
 {/if}        → svelteBlockClose
 ```
 
-Nesting is built in `@svmd/mdast-util-svelte`, in one pass over the finished MDAST, with a stack.
-What that buys:
+Nesting is built afterwards, in `@svmd/mdast-util-svelte`, in one pass over the finished MDAST
+with a stack. That stack also holds exact positions for every marker, which is what gives errors
+`E001`–`E003` real line and column information, including which line a block was opened on.
 
-- Content between markers is parsed as **ordinary** flow markdown, with no special rules.
-- The stack holds exact positions for every marker → E001/E002/E003 with real lines and columns,
-  including _"opened on line N"_.
-- The matching code is ~120 lines of plain, testable JavaScript, not a CPS state machine.
-
-### I5 — Tags: the "whole line" rule for flow context
-
-The rule: **a line consisting of exactly one tag** (opening, closing or self-closing), with up to
-three spaces of indentation, is a flow tag. Everything else containing `<` is parsed as inline.
+Tags follow the same flat-marker-then-tree approach. The rule for whether a tag is flow or inline:
+a line consisting of exactly one tag (opening, closing, or self-closing), with up to three spaces
+of indentation, is a flow tag; anything else containing `<` is inline.
 
 ```md
 <Callout type="info"> ← flow (opening marker)
@@ -154,98 +176,61 @@ three spaces of indentation, is a flow tag. Everything else containing `<` is pa
 This is <Badge>x</Badge> here. ← a paragraph with inline tags
 ```
 
-Same mechanism as I4: flat markers, tree afterwards. Consequences:
+This is what lets markdown parse _inside_ components by default (`<Callout>` doesn't stop the
+paragraph inside it from being parsed as markdown), lets component names use dots (`<Foo.Bar />`),
+and lets object-literal attributes work (`<Chart data={{ a: 1 }} />`, since `factoryBraced` counts
+braces rather than deferring to CommonMark's HTML tokenizer).
 
-- **L6 solved**: markdown inside components is parsed, because `htmlFlow` is off and the content
-  between markers is ordinary flow.
-- **G2 gone**: `<Foo.Bar />` works; the name is defined by our grammar, not by CommonMark.
-- **G1 gone**: `<Chart data={{ a: 1 }} />` works; `factoryBraced` counts braces.
-- The blank line after the opening tag stops being required (a compatible superset of §8.1).
+A paragraph whose content is _only_ block-level elements has its wrapping `<p>` removed
+(`unwrapBlockElements`), since `<p><div>…</div></p>` is invalid nesting that Svelte rejects. A
+paragraph that _mixes_ prose and a block element is split around the element instead
+(`<p>text </p><div>x</div><p> more</p>`), which is the standard resolution and keeps the
+surrounding prose in paragraphs. Whether an arbitrary component (as opposed to a known HTML block
+element) counts as "block" is not generally decidable from here, so position is the default
+signal (inline mid-sentence, block alone on its line), with `blockElements` available as an
+explicit override list for components that get the default wrong.
 
-**A correction found while implementing.** With only the rule above,
-`<div class="note">text</div>` on one line is inline content, and ends up wrapped in a paragraph:
-`<p><div>…</div></p>`, which is invalid nesting and which Svelte rightly rejects. A second pass,
-`unwrapBlockElements`, is added: a paragraph whose content is **only** block elements loses its
-`<p>`.
+CommonMark's `htmlFlow` and `htmlText` are disabled entirely — the tag grammar above replaces
+them, because CommonMark's HTML-block rule would otherwise keep `<div>` swallowing markdown until
+the next blank line. In their place: HTML comments (`<!-- … -->`, in both flow and text), and
+raw-text elements — `<script>` and `<style>` consume their content unparsed up to their matching
+closing tag. Components listed in the `rawComponents` option behave the same way: their content
+reaches Svelte verbatim, markdown syntax stays literal, and braces are not escaped. This is a
+property of the component (set once in config), not of a particular usage site, so there is no
+per-usage `raw` attribute.
 
-The test for "block" is CommonMark's own list of HTML block names
-(`micromark-util-html-tag-name`), plus anything shaped like a component. So `<em>text</em>` alone
-on its line is still a paragraph, which is correct, and `<div>` is not.
+### Script merging
 
-**A second correction, from the same root.** The rule above only saves a paragraph that is
-_nothing but_ elements. `text <div>x</div> more` mixes the two, and the `<div>` ends up inside the
-`<p>` anyway — which is not a cosmetic detail: Svelte rejects it with _"`</p>` attempted to close
-an element that was already automatically closed"_. The paragraph is **split** around the element,
-which is the standard resolution and keeps the prose's paragraphs:
-`<p>text </p><div>x</div><p> more</p>`.
+Multiple `<script>` / `<script module>` blocks across the document are merged with `acorn` +
+`acorn-typescript`, used only to _analyze_ each block (collect top-level declarations and imports
+for collision detection and deduplication). The original source text is kept and trimmed with
+`magic-string` — nothing is regenerated from the AST, which is what preserves TypeScript syntax
+that an AST-to-string emitter would otherwise mangle.
 
-For a **component** this is not decidable: what `<Card>` renders is not knowable from here.
-Position is the only signal, and it is right for the common case — inline mid-sentence, block alone
-on its line. For the case it gets wrong there is `blockElements`, an explicit list that changes no
-default behaviour. Guessing would have split `Press <Button>here</Button> now` into three
-paragraphs, which is worse than the problem it solves.
+Imports are deduplicated across scopes too: Svelte flattens `<script module>` and `<script>` into
+one output module, so a name imported in both is a duplicate-declaration error if left alone.
+There is no identifier renaming — since there is no layout system of svmd's own, the only possible
+collision is the user with themselves, and an explicit error (`E008`) is preferred there over a
+silent rename.
 
-### I6 — CommonMark's `htmlFlow` and `htmlText` are disabled
+Frontmatter keys are exposed to the template as `const { title, … } = metadata;`, generated in
+`<script module>` for every frontmatter key that is a valid, non-reserved JS identifier not
+already declared or imported by the user in either scope. This declares every key rather than only
+the ones referenced, since detecting "referenced" would require scanning block clauses that are
+not themselves valid JS expressions.
 
-Our tag grammar replaces them entirely. It is what MDX does, and it is the only way to resolve
-CR2/L6: while CommonMark's HTML-block rule is active, `<div>` keeps swallowing markdown until the
-next blank line.
+### Highlighting
 
-Added in their place:
+Code highlighting is off by default: fenced code blocks come out as
+`<pre><code class="language-js">` with escaped content. `@svmd/shiki` implements the `Highlighter`
+interface as a separate package with `shiki` as its own peer dependency, so `core` never carries
+highlighter weight for users who bring their own (`rehype-pretty-code`, Prism, plain CSS).
 
-- Comments `<!-- … -->`, in both flow and text.
-- **Raw-text elements**: `<script>` and `<style>` consume their content unparsed up to their
-  matching closing tag. This is what makes F11 and F12 possible.
+### Vite integration
 
-### I7 — AST-guided script merging that **preserves text** (refines D6)
-
-D6 says "merge as an AST, never by concatenating strings". The nuance that matters:
-**regenerating code from an AST destroys TypeScript**, and F11 is a _Must_.
-
-Implementation: _analyse_ with `acorn` + `acorn-typescript` to get top-level declarations and
-imports; _emit_ the original text, trimmed with `magic-string`. Nothing is regenerated.
-
-Operations:
-
-- Collect declared names per block → collision detection (E008), and which frontmatter bindings
-  can be created without overwriting the user's.
-- Deduplicate identical imports across blocks. **Across scopes too**: Svelte flattens
-  `<script module>` and `<script>` into one module, so an import repeated in both is a duplicate
-  declaration error. The fixture suite found that, not the design.
-- Strict separation of `<script module>` from `<script>`.
-- `lang="ts"` propagates to the output `<script>` if any input block declared it.
-
-**No identifier renaming.** With D7 (no layouts of our own) the only possible collision is the
-user with themselves, and there an explicit error is better engineering than a silent rename.
-
-### I8 — Frontmatter bindings
-
-`# {title}` has to work (§8.1). `const { title, … } = metadata;` is generated in the
-`<script module>` for every key that:
-
-1. Is a valid JavaScript identifier.
-2. Is not a reserved word, and not `metadata`.
-3. Is not already declared or imported by the user, in either scope.
-
-**Rejected:** declaring only the keys actually referenced. It would have required scanning
-identifiers inside expressions, and block clauses (`{#each items as item}`) are not expressions,
-so the scan would have been heuristic. An unused module constant costs nothing, and the resulting
-rule fits in one sentence.
-
-### I9 — Generation with `SourceBuilder`, not `magic-string` (refines §10.3)
-
-`magic-string` is for _editing_ an existing string. We **generate** a new one from a tree.
-`SourceBuilder` is an accumulator that takes `(text, optionalOriginPoint)` and produces code plus
-a v3 source map encoded with `@jridgewell/sourcemap-codec`.
-
-`magic-string` **is** used inside I7, where there really is existing text to edit.
-
-### I10 — Vite integration: the `.svmd.svelte` shadow id
-
-Verified empirically against Vite 8 and `@sveltejs/vite-plugin-svelte` 7.
-
-`vite-plugin-svelte` filters on a regex over the id: `^[^?#]+\.(svelte)(?:[?#]|$)`. The only
-contract stable across its versions is _"it compiles whatever ends in `.svelte`"_.
+`vite-plugin-svelte` filters modules by matching `^[^?#]+\.(svelte)(?:[?#]|$)` against the module
+id — the only contract stable across its versions is "it compiles whatever ends in `.svelte`". So
+`svmd` resolves each matched `.md` file to a shadow id ending in `.svmd.svelte`:
 
 ```
 import './post.md'
@@ -255,125 +240,20 @@ import './post.md'
    └─ vite-plugin-svelte:preprocess / :compile  →  sees `.svelte` → compiles
 ```
 
-**Rejected alternative:** mutating the Svelte plugin's `api.filter` from `configResolved`. It
-works, and it avoids the phantom id, but it couples us to an internal type (`PluginAPI`) that does
-not exist in versions ≤ 5. NF6 and R1/R2 outweigh the aesthetics of the id.
+Since the module id isn't a real file on disk, the file watcher can't find it directly; the
+`hotUpdate` hook maps `file → file + suffix` to correct that. Source maps still point at the real
+`.md`, so errors and devtools show the original file.
 
-**Cost accepted and mitigated:** the module id is not the file on disk, so the watcher cannot find
-the module by itself. The `hotUpdate` hook corrects that by mapping `file → file + suffix`. Source
-maps point at the real `.md`, so errors and devtools show the right file.
+### Frontmatter validation
 
-### I11 — Frontmatter validation through Standard Schema (resolves Q3)
+`frontmatter.schema` accepts anything implementing [Standard Schema](https://standardschema.dev)
+(Zod 4, Valibot, ArkType, and others implement it directly), rather than coupling to one validation
+library. A validation failure produces `E007` with the field's path. The YAML parser itself uses
+the YAML 1.2 core schema, under which `date: 2026-09-12` is a plain string rather than an
+implicitly-converted `Date` — coercion, where wanted, happens explicitly in the schema
+(`z.coerce.date()`).
 
-Rather than coupling to Zod or Valibot, `frontmatter.schema` accepts anything implementing
-[Standard Schema](https://standardschema.dev). Zod 4, Valibot and ArkType implement it out of the
-box. No dependency added, no lock-in. A validation failure produces E007 with the field's path.
-
-### I12 — No highlighter by default (resolves Q6)
-
-`highlight` defaults to `false`: code blocks come out as `<pre><code class="language-js">` with
-escaped content. Anyone who wants Shiki installs `@svmd/shiki`, a separate package implementing
-the `Highlighter` interface and declaring `shiki` as its own peer dependency.
-
-The adapter lives outside `core` by the same rule that separates everything else: a dependency
-boundary is a package boundary. So `core` has no optional peers, `shikiHighlighter()` stops being
-exported twice from two packages, and a future `@svmd/prism` fits in symmetrically.
-
-Reason: the core should not drag ~10 MB of grammars along for the case where the user already uses
-`rehype-pretty-code`, Prism, or their own CSS. Explicit over magic.
-
-### I13 — `smartypants` is not an option
-
-Spec §7.3 listed it. Rejected: it is exactly what `remarkPlugins` solves, and adding it would mean
-carrying `remark-smartypants` as a dependency for a typographic choice not everyone wants. It is
-documented in the README as one line of configuration instead.
-
-Effect: the public surface is **seven** options, not ten (NF9).
-
-### I14 — Frontmatter is YAML 1.2
-
-The parser (`yaml`) uses the YAML 1.2 core schema, which has no timestamps: `date: 2026-09-12` is
-a string. `js-yaml`, which mdsvex uses, applies YAML 1.1 and returns a `Date`.
-
-1.2 is chosen deliberately: implicit conversion is a classic source of surprises, and the explicit
-path already exists and is better — `z.coerce.date()` in the schema (I11). The schema's output is
-what ends up in `metadata`, and `devalue` serialises the resulting `Date` correctly.
-
-### I15 — Stepping outside markdown is opt-in, not the default
-
-**Decision:** markdown is parsed inside every component. `rawComponents` lists the ones that
-prefer to handle their own content, and inside those the text reaches Svelte verbatim: markdown
-syntax stays literal and braces are **not** escaped.
-
-**Reason.** Markdown inside components is F5 (_Must_) and L6 — one of the four things this project
-fixes relative to mdsvex. Removing it by default would take that with it. But some components have
-no use for parsed content: one that shows code, an editor, anything that cares about whitespace.
-
-**Why in the configuration and not an attribute.** A component handling its own children is a
-property of the component, not of where it is used. A `<Code raw>` here and a `<Code>` there is
-exactly the kind of inconsistency that makes markdown unpredictable. Same reasoning as
-`blockElements` (I5).
-
-**Implementation:** it reuses the raw-text scanner from `<script>` and `<style>`, with two
-additions those do not need — case-sensitive matching (Svelte distinguishes `<Code>` from
-`<code>`) and depth counting, because a component really can contain another of the same name. The
-lookahead reads the opening tag through to its `>` so that `<Code />`, which opens nothing, is not
-counted.
-
-### Other open questions from the spec
-
-|                              | Decision                                                                                                                |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **Q1** name                  | `@svmd/vite` (the Vite plugin), `@svmd/*` (the rest) — unscoped `svmd` was already taken on npm by an unrelated package |
-| **Q2** preprocessor          | No. Vite plugin only. A preprocessor reintroduces CR1                                                                   |
-| **Q4** `.svx`                | Not by default; reachable with `include: ['**/*.svx']`                                                                  |
-| **Q5** explicit escape       | No new syntax needed: I3 covers prose, and `{'{'}` is the escape hatch                                                  |
-| **Q7** migration from mdsvex | Out of scope for v1                                                                                                     |
-
----
-
-## 2. Pipeline
-
-```
- .md on disk
-      │
-      ▼  svmd (Vite, enforce: 'pre')            [D1][D3][I10]
-      │  include/exclude filter → shadow id
-      │
-      ▼  @svmd/core · compile()
-      │
-      ├─ 1. frontmatter        micromark-extension-frontmatter + yaml   [F2][I11]
-      │
-      ├─ 2. parse              micromark + @svmd/micromark-extension-svelte
-      │                        (htmlFlow/htmlText OFF)                  [I1][I6]
-      │
-      ├─ 3. from-markdown      @svmd/mdast-util-svelte → MDAST
-      │
-      ├─ 4. transform          block and tag tree construction,
-      │                        nesting validation (E001–E005)           [I4][I5]
-      │                        <script>/<style> extraction              [I6]
-      │
-      ├─ 5. remarkPlugins      the user's · `code` nodes are real       [F15][F16]
-      │
-      ├─ 6. mdast → hast       remark-rehype, passing svelte* nodes through
-      │
-      ├─ 7. rehypePlugins      the user's                               [F15]
-      │
-      ├─ 8. highlight          optional                                 [F17][I12]
-      │
-      ├─ 9. generate           hast → Svelte source, SourceBuilder      [D2][I9]
-      │                        brace escaping in text/raw               [D5][I3]
-      │
-      └─ 10. scripts           AST-guided merge, bindings, metadata     [D6][I7][I8]
-      │
-      ▼  { code: <.svelte source>, map, metadata }
-      │
-      ▼  @sveltejs/vite-plugin-svelte  →  JS + CSS
-```
-
----
-
-## 3. Data model (MDAST)
+## Data model (MDAST)
 
 ```ts
 // Expressions
@@ -406,12 +286,10 @@ counted.
 { type: 'svelteComment', value: string }
 ```
 
-An attribute's `name` is stored **verbatim**, directive and modifiers included
-(`transition:fade|local`). Taking it apart is a helper's job, not the tree's.
+An attribute's `name` is stored verbatim, directive and modifiers included
+(`transition:fade|local`); taking it apart is left to whichever code needs the pieces.
 
----
-
-## 4. Escaping table (implements §8.3)
+## Escaping
 
 | hast node                                         | `<` `&`           | `{` `}`             |
 | ------------------------------------------------- | ----------------- | ------------------- |
@@ -422,15 +300,11 @@ An attribute's `name` is stored **verbatim**, directive and modifiers included
 | `svelte*Expression`, `svelte*Tag`, `svelteBranch` | verbatim          | verbatim            |
 | `svelteScript`, `svelteStyle`                     | verbatim          | verbatim            |
 
-`raw` nodes have their braces escaped because that is what Shiki produces: the highlighted HTML of
-`function f() {` contains real braces that Svelte would read as expressions. `&#123;` inside an
-attribute or in text is valid HTML, and Svelte decodes it correctly.
+`raw` nodes get their braces escaped because that's what Shiki produces: the highlighted HTML of
+`function f() {` contains a real, literal brace that Svelte would otherwise try to read as an
+expression. `&#123;` is valid inside HTML text or an attribute, and Svelte decodes it correctly.
 
----
-
-## 5. Error catalogue
-
-Extends §10.2 with the codes that appeared while designing.
+## Errors
 
 | Code   | Condition                                                             |
 | ------ | --------------------------------------------------------------------- |
@@ -442,89 +316,76 @@ Extends §10.2 with the codes that appeared while designing.
 | `E007` | Frontmatter does not match the schema                                 |
 | `E008` | Duplicate declaration across `<script>` blocks                        |
 | `E009` | More than one instance `<script>`, or more than one `<script module>` |
-| `W001` | Content indented 4+ spaces inside an element or branch (G5)           |
+| `W001` | Content indented 4+ spaces inside an element or branch                |
 | `W002` | A `<script>` or `<style>` hoisted out of the block it was written in  |
 
 Every error is a `SvmdError` carrying `code`, `filename`, `start`, `end`, `hint` and `frame`, and
-exposes `loc`/`frame` in the shape Rollup and Vite already know how to print. Warnings travel in
+exposes `loc`/`frame` in the shape Rollup and Vite already print. Warnings travel in
 `CompileResult.warnings`, and the Vite plugin emits them with `this.warn()`.
 
-**On the spec's `E004`** (_"expression that acorn cannot parse"_): it does not exist, as a direct
-consequence of I2. In text context, an expression that does not parse is not an error — it is
-prose, and it gets escaped. In the other contexts acorn deliberately does not validate, because
-`{#each a as b}` and `{#snippet f(x)}` are not JavaScript expressions. The semantic error comes
-from Svelte, and thanks to NF1 it points at the right `.md` line. An error code that is never
-emitted is worse than not having one.
+`E004` and a brace-attribute warning that once lived in this table no longer apply: an expression
+that fails to parse in text context isn't an error at all (it's prose, and gets escaped), and the
+attribute case they covered (`<Chart data={{ a: 1 }} />`) simply works now that braces are counted
+by `factoryBraced` rather than by CommonMark's tag grammar.
 
-**On the spec's `W002`** (_"attribute with unwrapped spaces"_): that one does not exist either,
-because the G1 gotcha behind it disappeared with I1 — `<Chart data={{ a: 1 }} />` simply works.
-The code is reused for a warning that was actually needed: a `<script>` written inside an `{#if}`
-is hoisted to the top of the component and therefore does **not** run conditionally, which the
-source does not say anywhere.
-
----
-
-## 6. Repository layout
+## Repository layout
 
 ```
 svmd/
 ├── ARCHITECTURE.md            ← this document
-├── SPEC.md                    what the language is
 ├── CONTRIBUTING.md            how the work is done
 ├── CHANGELOG.md               one changelog; every package shares a version
-├── docs/structure.md          why the repository is split the way it is
 ├── package.json               workspace root (private)
 ├── pnpm-workspace.yaml
 ├── tsconfig.json              one type-check for the whole workspace
 ├── eslint.config.js  .prettierrc  .lintstagedrc.json  .editorconfig
 ├── packages/
-│   ├── micromark-factory-svelte-expression/   fork · brace balancing       [I1]
+│   ├── micromark-factory-svelte-expression/   fork · brace balancing
 │   │   └── index.js
-│   ├── micromark-extension-svelte/            fork · the grammar           [I1]
+│   ├── micromark-extension-svelte/            fork · the grammar
 │   │   ├── FORK.md                  what diverges from upstream, and why
 │   │   ├── index.js                 the public types, hand-written
 │   │   └── lib/
 │   │       ├── syntax.js            the assembled extension
 │   │       ├── factory-tag.js       fork of mdx-jsx · tags
-│   │       ├── factory-raw-text.js  ours · <script> / <style>       [I6]
+│   │       ├── factory-raw-text.js  ours · <script> / <style>
 │   │       ├── tag-flow.js          fork · a tag in flow
 │   │       ├── tag-text.js          fork · an inline tag
-│   │       ├── expression.js        fork · {expr} in flow and text  [I3]
-│   │       ├── block.js             ours · {#if} {:else} {@html}    [I4]
+│   │       ├── expression.js        fork · {expr} in flow and text
+│   │       ├── block.js             ours · {#if} {:else} {@html}
 │   │       └── comment.js           ours · <!-- … -->
-│   ├── mdast-util-svelte/                     fork · tokens → MDAST        [I1]
+│   ├── mdast-util-svelte/                     fork · tokens → MDAST
 │   │   ├── index.js
 │   │   └── lib/
 │   │       ├── index.js             fork of mdast-util-mdx-jsx
 │   │       ├── nodes.d.ts           MDAST types
-│   │       └── unwrap.js            ours · unwraps blocks from paragraphs [I5]
+│   │       └── unwrap.js            ours · unwraps blocks from paragraphs
 │   ├── core/                                  the compiler
 │   │   └── src/
 │   │       ├── index.ts             the public API
 │   │       ├── compile.ts           orchestrates the three stages
 │   │       ├── parse/               text → MDAST
 │   │       │   ├── pipeline.ts      unified, cached
-│   │       │   └── frontmatter.ts                                   [I11]
+│   │       │   └── frontmatter.ts
 │   │       ├── transform/           MDAST → HAST
 │   │       │   ├── to-hast.ts
 │   │       │   ├── hoist.ts         extracts <script> / <style>
-│   │       │   └── highlight.ts     the Highlighter contract        [I12]
-│   │       ├── generate/            HAST → Svelte source            [I9]
+│   │       │   └── highlight.ts     the Highlighter contract
+│   │       ├── generate/            HAST → Svelte source
 │   │       │   ├── component.ts     final assembly
 │   │       │   ├── markup.ts  attributes.ts  escape.ts
 │   │       │   ├── metadata.ts      export const metadata
-│   │       │   └── script/          AST-guided merge                [I7][I8]
+│   │       │   └── script/          AST-guided merge
 │   │       ├── diagnostics/         errors.ts · warnings.ts
-│   │       └── internal/            source-builder.ts               [I9]
-│   │                                names.ts
-│   ├── shiki/                                 highlighting adapter  [I12]
+│   │       └── internal/            source-builder.ts · names.ts
+│   ├── shiki/                                 highlighting adapter
 │   │   └── src/index.ts
 │   ├── vite/                                   the Vite plugin
-│   │   └── src/index.ts                                             [I10]
+│   │   └── src/index.ts
 │   └── content/                               runtime, zero deps
-│       └── src/index.ts                                             [D8]
+│       └── src/index.ts
 ├── test/                                      pipeline integration
-│   ├── fixtures/                    the cases from §11.3 and appendix C
+│   ├── fixtures/
 │   ├── snapshots/
 │   └── *.test.ts
 ├── scripts/
@@ -534,46 +395,34 @@ svmd/
 └── .github/workflows/{ci,release}.yml
 ```
 
-The four TypeScript packages (`core`, `shiki`, `vite`, `content`) are built with **tsdown**, one
-at a time and in topological order. The three forks are not built: they publish their JavaScript
-as it stands, the way upstream does, and their public declarations are hand-written in each
-package's root `index.d.ts` — see [CONTRIBUTING.md](./CONTRIBUTING.md#the-forks) for why.
+The four TypeScript packages (`core`, `shiki`, `vite`, `content`) are built with **tsdown**, one at
+a time and in topological order. The three forks are not built: they publish their JavaScript as
+it stands, the way upstream does — see [CONTRIBUTING.md](./CONTRIBUTING.md#the-forks) for why.
 
----
+## Verification
 
-## 7. Verification
+| Level       | What it proves                                                                        | Where                                      |
+| ----------- | ------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Grammar     | the tokens emitted, and above all what is _not_ tokenized                             | `packages/micromark-extension-svelte/test` |
+| Tree        | nesting, and errors E001–E005 with their positions                                    | `packages/mdast-util-svelte/test`          |
+| Fixtures    | every `.md` fixture against a snapshot **and** against `svelte.compile`, warning-free | `test/fixtures.test.ts`                    |
+| Regression  | one test per historical mdsvex issue being fixed                                      | `test/regressions.test.ts`                 |
+| Diagnostics | the whole error catalogue above                                                       | `test/diagnostics.test.ts`                 |
+| Source maps | traced with `@jridgewell/trace-mapping`                                               | `test/sourcemap.test.ts`                   |
+| Integration | a real Vite build and dev server                                                      | `test/vite-plugin.test.ts`                 |
+| Performance | linearity and brace-heavy prose                                                       | `test/performance.test.ts`                 |
+| Invariants  | fixtures against micromark's _development_ build, which asserts token balance         | `test/assertions.test.ts`                  |
+| Typed API   | that `entry.data` infers from a collection's schema                                   | `test/content.test.ts`                     |
+| End-to-end  | a SvelteKit app that prerenders                                                       | `examples/app`                             |
 
-The suite is the executable specification. Every level is mandatory:
-
-| Level       | What it proves                                                                           | Where                                      |
-| ----------- | ---------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Grammar     | the tokens emitted, and above all **what is not** tokenised                              | `packages/micromark-extension-svelte/test` |
-| Tree        | nesting, and errors E001–E005 with their positions                                       | `packages/mdast-util-svelte/test`          |
-| Fixtures    | every `.md` from §11.3 against a snapshot **and** against `svelte.compile`, warning-free | `test/fixtures.test.ts`                    |
-| Regression  | the mdsvex issues from appendix C, one per test                                          | `test/regressions.test.ts`                 |
-| Diagnostics | the whole §5 catalogue                                                                   | `test/diagnostics.test.ts`                 |
-| Source maps | NF1, with `@jridgewell/trace-mapping`                                                    | `test/sourcemap.test.ts`                   |
-| Integration | a real Vite build and dev server                                                         | `test/vite-plugin.test.ts`                 |
-| Performance | NF3, plus linearity and brace-heavy prose                                                | `test/performance.test.ts`                 |
-| Invariants  | the fixtures against micromark's _development_ build, which asserts token balance        | `test/assertions.test.ts`                  |
-| Typed API   | that `entry.data` infers from a collection's schema                                      | `test/content.test.ts`                     |
-| End-to-end  | a SvelteKit app that prerenders                                                          | `examples/app`                             |
-
-Two further lanes exist because the suite above resolves `@svmd/core` to the source tree through a
-vitest alias, which makes the loop fast and means a broken `exports` map passes in green:
+Two more lanes exist because the suite above resolves `@svmd/core` to the source tree through a
+vitest alias, which keeps the loop fast but means a broken `exports` map would still pass in green:
 
 | Lane                         | What runs                                | What it catches                                     |
 | ---------------------------- | ---------------------------------------- | --------------------------------------------------- |
 | `scripts/smoke.mjs`          | the **built** dist/, on the oldest Node  | a broken build, a dropped export, a false `engines` |
 | `scripts/consumer-check.mjs` | the **packed tarballs**, installed clean | `exports` maps, `files` lists, peer ranges          |
 
-**A snapshot is never enough on its own.** Every fixture is also compiled with `svelte.compile`
-and required to produce zero warnings: a pretty snapshot that Svelte rejects is not a passing
-test. That rule found three real bugs — imports duplicated across scopes, globs resolved against
-`process.cwd()`, and tabs breaking the raw-text tokenizer.
-
-### What it measured
-
-- 5.9 ms median for a 256-line document with components, blocks, code and tables (the NF3 budget
-  is 20 ms).
-- 375 tests in ~6 s.
+A snapshot alone is never treated as sufficient: every fixture is also compiled with
+`svelte.compile` and required to produce zero warnings, since a pretty snapshot that Svelte
+rejects isn't a passing test.

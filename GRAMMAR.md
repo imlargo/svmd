@@ -2,9 +2,7 @@
 
 The full contract between your markdown and the Svelte it compiles to. What is listed here
 works; anything else is escaped as text. This is the up-to-date reference.
-[`SPEC.md`](./SPEC.md) is the original design document, kept as written even where the
-implementation later diverged, and [`ARCHITECTURE.md`](./ARCHITECTURE.md) explains _why_ each
-rule exists, not just what it is.
+[`ARCHITECTURE.md`](./ARCHITECTURE.md) explains _why_ each rule exists, not just what it is.
 
 ## Expressions
 

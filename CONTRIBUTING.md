@@ -2,9 +2,7 @@
 
 This document is for anyone changing the source: the philosophy behind the design, the rules that
 must stay exact, and decisions already settled. For how to _use_ the library, see
-[README.md](./README.md). For how it works inside, see [ARCHITECTURE.md](./ARCHITECTURE.md); for
-what the language is, [SPEC.md](./SPEC.md); for why the repository is shaped this way,
-[docs/structure.md](./docs/structure.md).
+[README.md](./README.md). For how it works inside, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ---
 
