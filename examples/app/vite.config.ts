@@ -15,7 +15,7 @@ export default defineConfig({
 		svmd({
 			// The blog collection under src/content/, and one-off pages that import
 			// a sibling `content.md` directly (see src/routes/about/).
-			include: ['src/content/blog/**/*.md', 'src/routes/**/content.md'],
+			include: ['src/content/blog/**/*.md', 'src/routes/**/content.md', 'src/routes/**/+page.md'],
 			// Mirrors `content.ts`'s own glob: a file this excludes is not a
 			// component, so compiling it here would produce a route `getCollection`
 			// never lists — the exclusion has to live in both places.
@@ -23,6 +23,7 @@ export default defineConfig({
 			highlight: await shikiHighlighter({ theme: 'github-dark' })
 		}),
 		sveltekit({
+			extensions: ['.svelte', '.md'],
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
 				runes: ({ filename }) =>

@@ -3,7 +3,9 @@
 Notable changes to the `svmd` packages. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows
 [semantic versioning](https://semver.org/spec/v2.0.0.html). Since 1.0.0 a breaking change means a
-major bump; before it, while the major is `0`, a minor bump carries them.
+major bump. Before it, while the major is `0`, a minor bump means a real capability changed -
+something added, or something that could break a caller - and a patch means a fix with nothing new
+to learn.
 
 Every package in this repository shares one version and is released by one tag, so this is the
 only changelog. Entries name the package they are about when it is not `svmd` itself.
@@ -13,7 +15,7 @@ outside does not get a line here — the git history already has it.
 
 ## [Unreleased]
 
-## [0.1.2] - 2026-09-13
+## [0.2.0] - 2026-09-19
 
 ### Added
 
@@ -21,6 +23,16 @@ outside does not get a line here — the git history already has it.
   `import Post, { metadata } from './post.md'` type-checks with a one-line
   `/// <reference types="@svmd/vite/client" />`, instead of every project writing that
   declaration itself.
+- A `.md` can now be a SvelteKit route file. `src/routes/notes/+page.md` serves `/notes`,
+  prerendering included, given `.md` in SvelteKit's `extensions` and the file inside svmd's
+  globs. See [Markdown as a SvelteKit route](./README.md#markdown-as-a-sveltekit-route).
+
+### Fixed
+
+- A `.md` route file used to build in `vite dev` and then fail the adapter build with
+  `Could not find file "src/routes/x/+page.md" in Vite manifest`. SvelteKit resolves a route to
+  its chunk through that manifest, keyed by the real path, while svmd's ids carry a shadow
+  suffix; the compiled file is now keyed under both.
 
 ## [0.1.1] - 2026-09-13
 

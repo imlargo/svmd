@@ -1,6 +1,6 @@
 {
   "name": "@svmd/vite",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "type": "module",
   "description": "Vite plugin that compiles markdown to Svelte 5 components",
   "license": "MIT",

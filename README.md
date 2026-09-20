@@ -81,6 +81,35 @@ Press the button: <Counter bind:count />
 
 No `svelte.config.js` to touch. No separate build step. No layout system of its own.
 
+### Markdown as a SvelteKit route
+
+A `.md` can also _be_ the route, with no `+page.svelte` importing it. That needs two things:
+`.md` in SvelteKit's own `extensions`, so its router picks the file up, and the file inside
+svmd's globs, so there is something to pick up:
+
+```js
+// vite.config.js
+export default {
+  plugins: [
+    svmd({ include: ['src/routes/**/+page.md'] }),
+    sveltekit({ extensions: ['.svelte', '.md'] }),
+  ],
+};
+```
+
+```md
+---
+title: Notes
+---
+
+# {title}
+
+Frontmatter binds as a local, the same as in any other file svmd compiles.
+```
+
+`src/routes/notes/+page.md` then serves `/notes`, prerendering included. Everything SvelteKit
+owns stays SvelteKit's: a `+layout.svelte` above it wraps it, `+page.ts` beside it loads for it.
+
 ## Behavior
 
 If you're coming from mdsvex, most of the syntax is familiar. The table below covers where the

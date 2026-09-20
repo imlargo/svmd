@@ -196,6 +196,47 @@ export function svmd(options: SvmdOptions = {}): Plugin {
     },
 
     /**
+     * Re-key the build manifest so a `.md` that *is* a route file survives.
+     *
+     * SvelteKit walks the filesystem for routes, so a `+page.md` (with `.md`
+     * in its `extensions`) enters its route table under that real path. After
+     * the build it resolves each route to a chunk by looking that same path up
+     * in Vite's manifest, read off disk — `out/server/.vite/manifest.json`.
+     * The manifest is keyed by module id, and this plugin's ids carry the
+     * shadow suffix, so the lookup misses and the build dies on
+     * `Could not find file "src/routes/x/+page.md" in Vite manifest`: in the
+     * adapter build only, never in dev, where nothing reconciles the two.
+     *
+     * Adding the un-suffixed key alongside the real one costs a few bytes and
+     * makes the lookup land. `order: 'post'` so Vite's own manifest plugin has
+     * already emitted the asset by the time this runs.
+     */
+    generateBundle: {
+      order: 'post',
+      handler(_options, bundle) {
+        for (const [fileName, asset] of Object.entries(bundle)) {
+          if (!fileName.endsWith('.vite/manifest.json') || asset.type !== 'asset') continue;
+
+          const source = typeof asset.source === 'string' ? asset.source : null;
+          if (!source) continue;
+
+          const manifest = JSON.parse(source) as Record<string, unknown>;
+          let patched = false;
+
+          for (const key of Object.keys(manifest)) {
+            if (!key.endsWith(SUFFIX)) continue;
+            const original = key.slice(0, -SUFFIX.length);
+            if (original in manifest) continue;
+            manifest[original] = manifest[key];
+            patched = true;
+          }
+
+          if (patched) asset.source = JSON.stringify(manifest, null, 2);
+        }
+      },
+    },
+
+    /**
      * The watcher fires for `post.md`, but the module graph knows
      * `post.md.svmd.svelte`. Reconnect the two so `vite-plugin-svelte` — which
      * runs after this hook and does the real Svelte HMR — sees the module.

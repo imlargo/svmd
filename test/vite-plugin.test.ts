@@ -200,3 +200,87 @@ describe('include patterns', () => {
     expect(code).toContain('Hello');
   });
 }, 60_000);
+
+describe('resolveId', () => {
+  const plugin = svmd({ include: ['src/content/**/*.md'] });
+
+  type ResolveId = (
+    this: unknown,
+    source: string,
+    importer: string | undefined,
+    options: Record<string, unknown>,
+  ) => Promise<unknown>;
+
+  const context = {
+    resolve: (source: string) => Promise.resolve({ id: join(root, source), external: false }),
+  };
+
+  function resolve(source: string, options: Record<string, unknown> = {}): Promise<unknown> {
+    (plugin.configResolved as (config: { root: string }) => void).call(plugin, { root });
+    return (plugin.resolveId as unknown as ResolveId).call(context, source, undefined, options);
+  }
+
+  /**
+   * The scanner reads any id ending in `.svelte` straight off disk, and the
+   * shadow id is not a file. Regression guard for the ENOENT that only ever
+   * showed up through a static `import Post from './x.md'` (§I10).
+   */
+  it('does not add the shadow suffix while Vite is scanning dependencies', async () => {
+    const scanned = await resolve('src/content/post.md', { scan: true });
+    expect((scanned as { id: string }).id).not.toContain('.svmd.svelte');
+
+    const built = await resolve('src/content/post.md', {});
+    expect((built as { id: string }).id).toContain('.svmd.svelte');
+  });
+
+  it('hands an already-suffixed id back, except while scanning', async () => {
+    const id = join(root, 'src/content/post.md.svmd.svelte');
+    expect(await resolve(id, {})).toBe(id);
+    expect(await resolve(id, { scan: true })).toBeNull();
+  });
+
+  /** `?raw` and friends mean "the file itself", so compiling it would be wrong. */
+  it('leaves passthrough queries to Vite', async () => {
+    for (const query of ['?raw', '?url', '?inline', '?worker']) {
+      // `null` is the passthrough: the id is left for Vite's own handling.
+      expect(await resolve('src/content/post.md' + query, {})).toBeNull();
+    }
+  });
+}, 60_000);
+
+describe('build manifest', () => {
+  /**
+   * SvelteKit resolves a route to its chunk by looking the real file path up
+   * in the manifest it reads off disk, so a `.md` that *is* a route file
+   * (`+page.md`) needs its un-suffixed key present or the adapter build dies
+   * on `Could not find file ... in Vite manifest` — in the build only, never
+   * in dev, where nothing reconciles the two.
+   */
+  it('keys a compiled file under its real path as well as the shadow id', async () => {
+    write('src/routes/notes/+page.md', '---\ntitle: Notes\n---\n\n# {title}\n');
+
+    const result = await build({
+      root,
+      logLevel: 'silent',
+      plugins: [svmd({ include: ['src/routes/**/+page.md'] }), svelte()],
+      build: {
+        write: false,
+        minify: false,
+        manifest: true,
+        ssr: true,
+        rollupOptions: { input: { page: join(root, 'src/routes/notes/+page.md') } },
+      },
+    });
+
+    const output = (Array.isArray(result) ? result[0]! : (result as Rollup.RolldownOutput)).output;
+    const asset = output.find((chunk) => chunk.type === 'asset');
+    const manifest = JSON.parse((asset as { source: string }).source) as Record<
+      string,
+      { file: string }
+    >;
+
+    const shadow = 'src/routes/notes/+page.md.svmd.svelte';
+    expect(manifest[shadow]).toBeDefined();
+    expect(manifest['src/routes/notes/+page.md']).toEqual(manifest[shadow]);
+  });
+}, 60_000);
