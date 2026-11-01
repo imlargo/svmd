@@ -120,6 +120,16 @@ describe('metadata', () => {
     ).not.toThrow();
   });
 
+  it('does not bind a key Svelte reserves with `$`', async () => {
+    const result = await compile('---\n$schema: ./schema.json\ntitle: a\n---\n\n# {title}\n');
+
+    expect(result.metadata).toEqual({ $schema: './schema.json', title: 'a' });
+    expect(result.code).toContain('const { title } = metadata;');
+    expect(() =>
+      compileSvelte(result.code, { filename: 'x.svelte', generate: 'client' }),
+    ).not.toThrow();
+  });
+
   it('omits the binding line when nothing is bindable', async () => {
     const result = await compile('---\n2bad: b\n---\n');
     expect(result.code).not.toContain('= metadata;');

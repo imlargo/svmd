@@ -31,6 +31,8 @@ function bindableKeys(metadata: Record<string, unknown>, declared: ReadonlySet<s
 
   for (const key of Object.keys(metadata)) {
     if (!IDENTIFIER.test(key)) continue;
+    // Svelte reserves the `$` prefix (`dollar_prefix_invalid`), e.g. a `$schema` key.
+    if (key.startsWith('$')) continue;
     if (RESERVED.has(key)) continue;
     if (declared.has(key)) continue;
     names.push(key);
