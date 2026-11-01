@@ -208,6 +208,30 @@ describe('escaping stays faithful to the source', () => {
   });
 });
 
+describe('highlighter output and a scoped <style> in the same file', () => {
+  const highlight = ({ value }: { value: string }) =>
+    `<pre class="shiki" tabindex="0"><code>${value}</code></pre><pre tabindex="0">{x}</pre>`;
+  const source = '```js\nif (a) { b() }\n```\n\n<style>\n  pre { border: 1px solid; }\n</style>\n';
+
+  it('becomes markup, so the stylesheet reaches it with no warnings', async () => {
+    const result = await compile(source, { highlight });
+    expect(result.code).not.toContain('{@html');
+    expect(result.code).toContain('if (a) &#123; b() &#125;');
+
+    const { warnings, css } = compileSvelte(result.code, {
+      filename: 'x.svelte',
+      generate: 'client',
+    });
+    expect(warnings).toEqual([]);
+    expect(css?.code).toMatch(/pre\.svelte-/);
+  });
+
+  it('stays opaque when the stylesheet is global', async () => {
+    const result = await compile(source.replace('<style>', '<style global>'), { highlight });
+    expect(result.code).toContain('{@html');
+  });
+});
+
 describe('a clause may end inside a line comment', () => {
   // The grammar trims a block clause, dropping the line ending that closed
   // the comment. Emitting the brace straight after would comment it out.

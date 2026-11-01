@@ -100,8 +100,8 @@ function one(node: AnyNode, builder: SourceBuilder, schema: Schema): void {
 
     case 'raw':
       // HTML from the highlighter or a plugin is opaque to Svelte: no a11y lint on
-      // markup the author did not write (Shiki's scrollable `<pre tabindex="0">`),
-      // no template nodes per highlighted token, and braces need no escaping.
+      // markup the author did not write, and no template nodes per highlighted token.
+      // A file with a scoped `<style>` gets it as markup instead (`transform/raw.ts`).
       builder.append(
         '{@html ' + JSON.stringify((node as { value: string }).value) + '}',
         startOf(node),

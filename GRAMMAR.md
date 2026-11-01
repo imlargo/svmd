@@ -170,15 +170,15 @@ Frontmatter is parsed as YAML 1.2, so an unquoted date is a string. Use a schema
 
 ## What gets escaped
 
-| Context                                          | Braces escaped? |
-| ------------------------------------------------ | --------------- |
-| Paragraph, heading, list and table text          | yes             |
-| Code blocks and inline code                      | yes             |
-| Raw HTML from a rehype plugin or the highlighter | `{@html}`       |
-| Expressions, blocks and `{@…}` tags              | no              |
-| Attributes                                       | no              |
-| `<script>` and `<style>`                         | no              |
-| Content of a component listed in `rawComponents` | no              |
+| Context                                          | Braces escaped?                           |
+| ------------------------------------------------ | ----------------------------------------- |
+| Paragraph, heading, list and table text          | yes                                       |
+| Code blocks and inline code                      | yes                                       |
+| Raw HTML from a rehype plugin or the highlighter | `{@html}`, or yes with a scoped `<style>` |
+| Expressions, blocks and `{@…}` tags              | no                                        |
+| Attributes                                       | no                                        |
+| `<script>` and `<style>`                         | no                                        |
+| Content of a component listed in `rawComponents` | no                                        |
 
 ## Components that handle their own content
 
