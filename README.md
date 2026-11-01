@@ -364,6 +364,10 @@ And two warnings, which do not fail the build but are reported:
 | `W001` | indented content inside a component, which CommonMark turned into a code block            |
 | `W002` | a `<script>` or `<style>` written inside a block: it is hoisted, so it is not conditional |
 
+Svelte's own warnings about markup you wrote in markdown (a missing `alt`, an unused selector) are
+reported at the line in the `.md` too, through `@sveltejs/vite-plugin-svelte` 7 and any `onwarn`
+you passed it.
+
 ## Scope
 
 svmd leaves out layouts, routing, a documentation framework, image optimisation, and support for

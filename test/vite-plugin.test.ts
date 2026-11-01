@@ -160,6 +160,59 @@ describe('metadata-only module', () => {
   });
 }, 60_000);
 
+describe('Svelte warnings', () => {
+  it('point at the markdown, not at the generated component', async () => {
+    write(
+      'src/content/warned.md',
+      [
+        '---',
+        'title: T',
+        '---',
+        '',
+        '# {title}',
+        '',
+        'Some text.',
+        '',
+        '<img src="/x.png">',
+        '',
+      ].join('\n'),
+    );
+    write('src/entry-warned.js', "import C from './content/warned.md';\nexport { C };\n");
+
+    const seen: {
+      code: string;
+      filename: string | undefined;
+      line: number | undefined;
+      frame: string | undefined;
+    }[] = [];
+    await build({
+      root,
+      logLevel: 'silent',
+      plugins: [
+        svmd({ include: ['src/content/**/*.md'] }),
+        svelte({
+          onwarn: (warning) =>
+            void seen.push({
+              code: warning.code,
+              filename: warning.filename,
+              line: warning.start?.line,
+              frame: warning.frame,
+            }),
+        }),
+      ],
+      build: {
+        write: false,
+        lib: { entry: 'src/entry-warned.js', formats: ['es'], fileName: 'warned' },
+      },
+    });
+
+    const warning = seen.find((entry) => entry.code === 'a11y_missing_attribute');
+    expect(warning?.filename).toMatch(/src\/content\/warned\.md$/);
+    expect(warning?.line).toBe(9);
+    expect(warning?.frame).toContain('<img src="/x.png">');
+  });
+}, 60_000);
+
 describe('dependency scan', () => {
   it('discovers a package imported only from a markdown script', async () => {
     const { createServer } = await import('vite');
@@ -315,7 +368,13 @@ describe('resolveId', () => {
   };
 
   function resolve(source: string, options: Record<string, unknown> = {}): Promise<unknown> {
-    (plugin.configResolved as (config: { root: string }) => void).call(plugin, { root });
+    (plugin.configResolved as unknown as (config: { root: string; plugins: [] }) => void).call(
+      plugin,
+      {
+        root,
+        plugins: [],
+      },
+    );
     const hook = plugin.resolveId as unknown as { handler: ResolveId };
     return hook.handler.call(context, source, undefined, options);
   }

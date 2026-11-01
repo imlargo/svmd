@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
-import { createCompiler, SvmdError, type CompileOptions } from '@svmd/core';
+import { createCompiler, SvmdError, type CompileOptions, type EncodedSourceMap } from '@svmd/core';
 import { createFilter, type Plugin, type ResolvedConfig, type Rolldown } from 'vite';
+import { remapSvelteWarnings } from './warnings.js';
 
 export type { CompileOptions, SvmdError };
 export type { Highlighter, HighlightInput, StandardSchemaV1, SvmdWarning } from '@svmd/core';
@@ -122,6 +123,8 @@ export function svmd(options: SvmdOptions = {}): Plugin {
    * build` from a subdirectory, and in monorepos.
    */
   let filter: (id: string) => boolean = () => false;
+  /** The last source map of each compiled file, for remapping Svelte's warnings. */
+  const maps = new Map<string, EncodedSourceMap>();
   const patterns = Array.isArray(include) ? include : [include as string | RegExp];
   const extensions = extensionsOf(patterns);
 
@@ -177,6 +180,7 @@ export function svmd(options: SvmdOptions = {}): Plugin {
       filter = createFilter(include, exclude, {
         resolve: config.root,
       });
+      remapSvelteWarnings(config, SUFFIX, maps);
     },
 
     // Filters keep Rolldown from calling into JavaScript for every module of
@@ -254,6 +258,7 @@ export function svmd(options: SvmdOptions = {}): Plugin {
             });
           }
 
+          maps.set(filename, result.map);
           return { code: result.code, map: result.map };
         } catch (error) {
           throw toRollupError(error);
