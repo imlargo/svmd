@@ -314,8 +314,13 @@ An attribute's `name` is stored verbatim, directive and modifiers included
 
 `raw` nodes are HTML the author did not write, so Svelte gets them as an opaque string: a literal
 brace in highlighted `function f() {` stays text, Svelte's a11y checks do not run on markup like
-Shiki's scrollable `<pre tabindex="0">`, and a long code block costs one string instead of a
-template node per token.
+Shiki's scrollable `<pre tabindex="0">`, and a long code block compiles about fifteen times faster
+than the same HTML as template nodes.
+
+A file with its own scoped `<style>` is the exception, since `{@html}` content gets no scoping
+class and the stylesheet could not reach it. There `transform/raw.ts` turns `raw` into markup:
+braces become `&#123;`/`&#125;`, and each tag carrying `tabindex` gets a
+`svelte-ignore a11y_no_noninteractive_tabindex` comment, which Svelte drops when it compiles.
 
 ## Errors
 

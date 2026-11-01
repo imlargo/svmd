@@ -338,10 +338,13 @@ describe('dev server', () => {
       const file = join(root, 'src/content/watched.md');
       const hotUpdate = plugin.hotUpdate as unknown as (
         this: { environment: typeof client },
-        context: { file: string; modules: unknown[] },
+        context: { file: string; modules: unknown[]; server: unknown; timestamp: number },
       ) => Promise<unknown[] | undefined>;
 
-      const result = await hotUpdate.call({ environment: client }, { file, modules: [] });
+      const result = await hotUpdate.call(
+        { environment: client },
+        { file, modules: [], server, timestamp: Date.now() },
+      );
       expect(result).toHaveLength(1);
       expect((result![0] as { id: string }).id).toBe(file + '.svmd.svelte');
 
@@ -349,9 +352,47 @@ describe('dev server', () => {
       expect(
         await hotUpdate.call(
           { environment: client },
-          { file: join(root, 'src/other/ignored.md'), modules: [] },
+          { file: join(root, 'src/other/ignored.md'), modules: [], server, timestamp: Date.now() },
         ),
       ).toBeUndefined();
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('invalidates the SSR module before the client environment finishes', async () => {
+    const { createServer } = await import('vite');
+
+    write('src/content/both.md', '# one\n');
+    const plugin = svmd({ include: ['src/content/**/*.md'] });
+    const server = await createServer({
+      root,
+      logLevel: 'silent',
+      server: { middlewareMode: true, hmr: false, watch: null },
+      plugins: [plugin, svelte()],
+    });
+
+    try {
+      const { client, ssr } = server.environments;
+      await client.transformRequest('/src/content/both.md');
+      await ssr.transformRequest('/src/content/both.md');
+
+      const file = join(root, 'src/content/both.md');
+      const [ssrModule] = ssr.moduleGraph.getModulesByFile(file + '.svmd.svelte')!;
+      expect(ssrModule!.transformResult).not.toBeNull();
+
+      // Vite reloads the page once the client environment is through; a stale
+      // SSR module then renders HTML the new client code cannot hydrate.
+      const hotUpdate = plugin.hotUpdate as unknown as (
+        this: { environment: typeof client },
+        context: { file: string; modules: unknown[]; server: unknown; timestamp: number },
+      ) => Promise<unknown>;
+      await hotUpdate.call(
+        { environment: client },
+        { file, modules: [], server, timestamp: Date.now() },
+      );
+
+      expect(ssrModule!.transformResult).toBeNull();
     } finally {
       await server.close();
     }
@@ -378,10 +419,15 @@ describe('dev server', () => {
       const file = join(root, 'src/content/indexed.md');
       const hotUpdate = plugin.hotUpdate as unknown as (
         this: { environment: typeof client },
-        context: { file: string; modules: unknown[] },
+        context: { file: string; modules: unknown[]; server: unknown; timestamp: number },
       ) => Promise<{ id: string }[] | undefined>;
       const ids = async () =>
-        (await hotUpdate.call({ environment: client }, { file, modules: [] }))?.map((m) => m.id);
+        (
+          await hotUpdate.call(
+            { environment: client },
+            { file, modules: [], server, timestamp: Date.now() },
+          )
+        )?.map((m) => m.id);
 
       // A body edit is Svelte HMR; reloading every page that lists the file would be noise.
       write('src/content/indexed.md', '---\ntitle: A\n---\n\nbody two\n');

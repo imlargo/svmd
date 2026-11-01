@@ -18,6 +18,7 @@ import { analyzeScript } from './generate/script/analyze.js';
 import { SourceBuilder, type EncodedSourceMap } from './internal/source-builder.js';
 import { svelteToHast } from './transform/to-hast.js';
 import { collectHeadings, inlineFrontmatter, type Heading } from './transform/headings.js';
+import { hasScopedStyle, rawToMarkup } from './transform/raw.js';
 import { collectWarnings } from './diagnostics/warnings.js';
 
 export interface CompileOptions {
@@ -160,6 +161,7 @@ async function compileWith(
   const hast = svelteToHast(tree);
   inlineFrontmatter(hast, metadata, scripts.declared);
   await pipeline.html.run(hast, file);
+  if (hasScopedStyle(scripts.style)) rawToMarkup(hast);
 
   const headings = collectHeadings(hast);
   const builder = new SourceBuilder();
