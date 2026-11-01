@@ -358,8 +358,23 @@ export function svmd(options: SvmdOptions = {}): Plugin {
      * the page, only when the frontmatter itself changed.
      */
     async hotUpdate(context) {
-      const { file, modules } = context;
+      const { file, modules, server, timestamp } = context;
       if (!filter(file)) return;
+
+      // Vite invalidated only the modules keyed by `post.md`; without this,
+      // vite-plugin-svelte re-reads a cached result and skips the update. Done
+      // in every environment, before anything awaits: Vite reloads the page as
+      // soon as the client environment is through, and an SSR module still
+      // holding the old output renders HTML the new client code cannot hydrate.
+      for (const environment of Object.values(server.environments)) {
+        const graph = environment.moduleGraph;
+        const seen = new Set<EnvironmentModuleNode>();
+        for (const suffix of [SUFFIX, METADATA_SUFFIX]) {
+          for (const shadow of graph.getModulesByFile(file + suffix) ?? []) {
+            graph.invalidateModule(shadow, seen, timestamp, true);
+          }
+        }
+      }
 
       const { moduleGraph } = this.environment;
       const shadows = [...(moduleGraph.getModulesByFile(file + SUFFIX) ?? [])];
@@ -370,15 +385,6 @@ export function svmd(options: SvmdOptions = {}): Plugin {
       }
 
       if (shadows.length === 0) return;
-
-      // Vite invalidated only the modules keyed by `post.md`. Without this,
-      // vite-plugin-svelte re-reads the cached result, finds it unchanged and
-      // skips the update, and the page falls back to a full reload.
-      const seen = new Set<EnvironmentModuleNode>();
-      for (const shadow of shadows) {
-        moduleGraph.invalidateModule(shadow, seen, context.timestamp, true);
-      }
-
       return [...modules, ...shadows];
     },
   };
