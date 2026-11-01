@@ -241,6 +241,10 @@ svmd({
 });
 ```
 
+For light and dark, pass `themes: { light, dark }`; `defaultColor: false` leaves every token with CSS
+variables only, so a `.dark` class can switch them with no inline color to override. The fence's
+info string after the language reaches Shiki's transformers as `meta`.
+
 Or write your own. It is one function:
 
 ```js

@@ -29,6 +29,36 @@ describe('shikiHighlighter', () => {
     expect(html).toContain('--shiki-dark');
   });
 
+  it('inlines no default color when told not to', async () => {
+    const highlight = await shikiHighlighter({
+      themes: { light: 'github-light', dark: 'github-dark' },
+      defaultColor: false,
+      langs: ['ts'],
+    });
+    const html = await highlight({ value: 'const a = 1;', lang: 'ts', meta: null });
+
+    expect(html).toContain('--shiki-light:');
+    expect(html).not.toMatch(/[";]color:/);
+  });
+
+  it("hands the fence's meta to transformers", async () => {
+    const seen: unknown[] = [];
+    const highlight = await shikiHighlighter({
+      theme: 'github-dark',
+      langs: ['ts'],
+      transformers: [
+        {
+          pre(this: { options: { meta?: { __raw?: string } } }) {
+            seen.push(this.options.meta?.__raw);
+          },
+        },
+      ],
+    });
+    await highlight({ value: 'const a = 1;', lang: 'ts', meta: '{1} title="a.ts"' });
+
+    expect(seen).toEqual(['{1} title="a.ts"']);
+  });
+
   /** An unknown info string must not fail the build over a code block. */
   it('falls back instead of throwing on a language Shiki does not know', async () => {
     const highlight = await shikiHighlighter({ theme: 'github-dark', langs: ['ts'] });
