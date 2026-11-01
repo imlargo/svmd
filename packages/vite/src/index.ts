@@ -195,8 +195,9 @@ export function svmd(options: SvmdOptions = {}): Plugin {
     config() {
       // Vite 8 only: older majors scan with esbuild, and there a dependency
       // imported only from markdown is still discovered on first request.
-      const meta = this.meta as { rolldownVersion?: string };
-      if (!extensions || !meta.rolldownVersion) return;
+      // Vite 6 calls this hook without a context, hence the optional `this`.
+      const context = this as { meta?: { rolldownVersion?: string } } | undefined;
+      if (!extensions || !context?.meta?.rolldownVersion) return;
 
       return {
         optimizeDeps: {

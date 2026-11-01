@@ -63,9 +63,10 @@ check('source map produced', typeof result.map.mappings === 'string');
 const plugin = svmd({ include: ['**/*.md'] });
 check('plugin has a name', plugin.name === 'svmd');
 // Compilation happens behind a shadow module id, so the hooks are resolveId
-// and load rather than transform.
-check('plugin resolves the shadow id', typeof plugin.resolveId === 'function');
-check('plugin loads the component', typeof plugin.load === 'function');
+// and load rather than transform. Both are object hooks, with a filter.
+const isHook = (hook) => typeof hook === 'function' || typeof hook?.handler === 'function';
+check('plugin resolves the shadow id', isHook(plugin.resolveId));
+check('plugin loads the component', isHook(plugin.load));
 
 if (failures.length > 0) {
   console.error('smoke test failed:');

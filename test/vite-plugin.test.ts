@@ -214,6 +214,11 @@ describe('Svelte warnings', () => {
 }, 60_000);
 
 describe('dependency scan', () => {
+  it('stays off without Rolldown, where Vite 6 calls config with no context', () => {
+    const config = svmd().config as unknown as (this: undefined) => unknown;
+    expect(config.call(undefined)).toBeUndefined();
+  });
+
   it('discovers a package imported only from a markdown script', async () => {
     const { createServer } = await import('vite');
 
