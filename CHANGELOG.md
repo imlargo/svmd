@@ -15,6 +15,8 @@ outside does not get a line here — the git history already has it.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-01
+
 ### Fixed
 
 - A scoped `<style>` in a `.md` did not reach highlighted code, and Svelte reported its selectors as

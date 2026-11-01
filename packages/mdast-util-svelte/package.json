@@ -1,6 +1,6 @@
 {
   "name": "@svmd/mdast-util-svelte",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "license": "MIT",
   "description": "mdast extension for Svelte syntax — fork of mdast-util-mdx-jsx",
