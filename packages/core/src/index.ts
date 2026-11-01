@@ -4,6 +4,7 @@ export {
   type Compiler,
   type CompileOptions,
   type CompileResult,
+  type MetadataResult,
 } from './compile.js';
 export { SvmdError, codeFrame, type SvmdPoint, type SvmdWarning } from './diagnostics/errors.js';
 export type { FrontmatterOptions } from './parse/frontmatter.js';

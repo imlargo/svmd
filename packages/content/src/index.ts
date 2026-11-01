@@ -35,10 +35,11 @@ export interface ContentModule<Data> {
 export interface CollectionDefinition<Data = Record<string, unknown>> {
   /**
    * Eager glob of frontmatter only:
-   * `import.meta.glob('/src/content/blog/**\/*.md', { eager: true, import: 'metadata' })`
+   * `import.meta.glob('/src/content/blog/**\/*.md', { eager: true, query: '?metadata', import: 'metadata' })`
    *
-   * Importing just `metadata` is what keeps the index cheap: the bodies stay
-   * out of the bundle until something actually renders one (§9.3).
+   * `?metadata` imports a module holding the frontmatter and nothing else. Without
+   * it the eager import pulls in every component, and the lazy `body` glob cannot
+   * split them into their own chunks.
    */
   meta: Record<string, unknown>;
 

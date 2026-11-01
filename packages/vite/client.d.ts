@@ -23,3 +23,8 @@ declare module '*.md' {
   export default component;
   export const metadata: unknown;
 }
+
+/** The frontmatter alone, without the component: `import { metadata } from './post.md?metadata'`. */
+declare module '*.md?metadata' {
+  export const metadata: unknown;
+}

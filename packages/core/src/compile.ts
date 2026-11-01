@@ -4,7 +4,12 @@ import type { PluggableList } from 'unified';
 import { VFile } from 'vfile';
 import { emitComponent } from './generate/component.js';
 import { SvmdError, type SvmdPoint, type SvmdWarning } from './diagnostics/errors.js';
-import { extractFrontmatter, type FrontmatterOptions } from './parse/frontmatter.js';
+import {
+  extractFrontmatter,
+  readFrontmatter,
+  type FrontmatterOptions,
+} from './parse/frontmatter.js';
+import { metadataExport } from './generate/metadata.js';
 import { hoistScriptsAndStyles } from './transform/hoist.js';
 import type { Highlighter } from './transform/highlight.js';
 import { createPipeline, getPipeline, type Pipeline } from './parse/pipeline.js';
@@ -73,8 +78,20 @@ export async function compile(
   return compileWith(getPipeline(rest), rest, source, filename);
 }
 
+export interface MetadataResult {
+  /** A JavaScript module whose only export is `metadata`. */
+  code: string;
+  /** The frontmatter, after optional schema validation. */
+  metadata: Record<string, unknown>;
+}
+
 export interface Compiler {
   compile(source: string, filename?: string): Promise<CompileResult>;
+  /**
+   * The `metadata` export alone, without compiling the body. Equal to
+   * `compile(...).metadata`, and cheap enough for an eager index of every file.
+   */
+  compileMetadata(source: string, filename?: string): Promise<MetadataResult>;
 }
 
 /**
@@ -92,6 +109,10 @@ export function createCompiler(options: CompileOptions = {}): Compiler {
   return {
     compile(source, filename) {
       return compileWith(pipeline, rest, source, filename);
+    },
+    async compileMetadata(source, filename) {
+      const { metadata } = await readFrontmatter(source, filename, rest.frontmatter ?? {});
+      return { code: metadataExport(metadata), metadata };
     },
   };
 }

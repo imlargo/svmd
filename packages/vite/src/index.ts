@@ -32,6 +32,14 @@ export interface SvmdOptions extends Omit<CompileOptions, 'filename'> {
  */
 const SUFFIX = '.svmd.svelte';
 
+/**
+ * The metadata-only module behind `post.md?metadata`: plain JavaScript, so an
+ * eager index of every file never imports a component, and the lazy body glob
+ * keeps its own chunk.
+ */
+const METADATA_QUERY = 'metadata';
+const METADATA_SUFFIX = '.svmd-metadata.js';
+
 /** Queries whose meaning is "give me the file itself, do not compile it". */
 const PASSTHROUGH_QUERIES = new Set(['raw', 'url', 'inline', 'worker', 'sharedworker']);
 
@@ -77,13 +85,16 @@ function splitId(id: string): SplitId {
     : { path: id.slice(0, index), query: id.slice(index) };
 }
 
+function queryKeys(query: string): string[] {
+  return query === '' ? [] : [...new URLSearchParams(query.slice(1)).keys()];
+}
+
 function isPassthrough(query: string): boolean {
-  if (query === '') return false;
-  const params = new URLSearchParams(query.slice(1));
-  for (const key of params.keys()) {
-    if (PASSTHROUGH_QUERIES.has(key)) return true;
-  }
-  return false;
+  return queryKeys(query).some((key) => PASSTHROUGH_QUERIES.has(key));
+}
+
+function isMetadataQuery(query: string): boolean {
+  return queryKeys(query).includes(METADATA_QUERY);
 }
 
 /** Markdown compiled to Svelte components, scoped by glob. */
@@ -149,7 +160,7 @@ export function svmd(options: SvmdOptions = {}): Plugin {
       // the one cost, and it is invisible past a single extra reload in dev.
       const scanning = (resolveOptions as { scan?: boolean }).scan === true;
 
-      if (source.endsWith(SUFFIX)) {
+      if (source.endsWith(SUFFIX) || source.endsWith(METADATA_SUFFIX)) {
         return scanning ? null : source;
       }
 
@@ -165,11 +176,27 @@ export function svmd(options: SvmdOptions = {}): Plugin {
       const target = splitId(resolved.id);
       if (!filter(target.path) || scanning) return resolved;
 
+      if (isMetadataQuery(target.query)) {
+        return { ...resolved, id: target.path + METADATA_SUFFIX };
+      }
+
       return { ...resolved, id: target.path + SUFFIX + target.query };
     },
 
     async load(id) {
       const { path } = splitId(id);
+
+      if (path.endsWith(METADATA_SUFFIX)) {
+        const filename = path.slice(0, -METADATA_SUFFIX.length);
+        this.addWatchFile(filename);
+        try {
+          const result = await compiler.compileMetadata(await readFile(filename, 'utf8'), filename);
+          return { code: result.code, map: null };
+        } catch (error) {
+          throw toRollupError(error);
+        }
+      }
+
       if (!path.endsWith(SUFFIX)) return null;
 
       const filename = path.slice(0, -SUFFIX.length);
@@ -245,10 +272,14 @@ export function svmd(options: SvmdOptions = {}): Plugin {
       const { file, modules } = context;
       if (!filter(file)) return;
 
-      const shadow = this.environment.moduleGraph.getModulesByFile(file + SUFFIX);
-      if (!shadow || shadow.size === 0) return;
+      const { moduleGraph } = this.environment;
+      const shadows = [
+        ...(moduleGraph.getModulesByFile(file + SUFFIX) ?? []),
+        ...(moduleGraph.getModulesByFile(file + METADATA_SUFFIX) ?? []),
+      ];
+      if (shadows.length === 0) return;
 
-      return [...modules, ...shadow];
+      return [...modules, ...shadows];
     },
   };
 }

@@ -7,7 +7,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { svmd, type SvmdOptions } from '@svmd/vite';
+import { svmd, type StandardSchemaV1, type SvmdOptions } from '@svmd/vite';
 import { build, type Rollup } from 'vite';
 import { afterAll, describe, expect, it } from 'vitest';
 
@@ -89,6 +89,74 @@ describe('vite plugin', () => {
     await expect(bundle('src/entry-d.js', { include: ['src/content/**/*.md'] })).rejects.toThrow(
       /E001[\s\S]*broken\.md:3:1/,
     );
+  });
+}, 60_000);
+
+describe('metadata-only module', () => {
+  write('src/content/lazy/one.md', '---\ntitle: One\n---\n\nBODY-ONE {title}\n');
+  write('src/content/lazy/two.md', '---\ntitle: Two\n---\n\nBODY-TWO {title}\n');
+
+  it('keeps every body out of an eager index of frontmatter', async () => {
+    write(
+      'src/entry-index.js',
+      [
+        "export const meta = import.meta.glob('./content/lazy/*.md', { eager: true, query: '?metadata', import: 'metadata' });",
+        "export const body = import.meta.glob('./content/lazy/*.md');",
+      ].join('\n'),
+    );
+
+    const { createLogger } = await import('vite');
+    const logger = createLogger('silent');
+    const warnings: string[] = [];
+    logger.warn = (message) => void warnings.push(message);
+
+    const result = (await build({
+      root,
+      customLogger: logger,
+      plugins: [svmd({ include: ['src/content/**/*.md'] }), svelte()],
+      build: {
+        write: false,
+        minify: false,
+        lib: { entry: 'src/entry-index.js', formats: ['es'], fileName: 'index' },
+      },
+    })) as Rollup.RolldownOutput[];
+
+    const chunks = result[0]!.output.filter((chunk) => chunk.type === 'chunk');
+    const entry = chunks.find((chunk) => chunk.isEntry)!;
+
+    expect(entry.code).toContain('One');
+    expect(entry.code).toContain('Two');
+    expect(entry.code).not.toContain('BODY-ONE');
+    expect(entry.code).not.toContain('BODY-TWO');
+    expect(chunks.filter((chunk) => /BODY-(ONE|TWO)/.test(chunk.code))).toHaveLength(2);
+    expect(warnings.join('\n')).not.toContain('INEFFECTIVE_DYNAMIC_IMPORT');
+  });
+
+  it('exports the same metadata as the component, schema applied', async () => {
+    const { createServer } = await import('vite');
+    const schema: StandardSchemaV1<unknown, Record<string, unknown>> = {
+      '~standard': {
+        version: 1,
+        vendor: 'test',
+        validate: (value) => ({ value: { ...(value as object), draft: false } }),
+      },
+    };
+    const server = await createServer({
+      root,
+      logLevel: 'silent',
+      server: { middlewareMode: true, hmr: false, watch: null },
+      plugins: [svmd({ include: ['src/content/**/*.md'], frontmatter: { schema } }), svelte()],
+    });
+
+    try {
+      const meta = await server.ssrLoadModule('/src/content/lazy/one.md?metadata');
+      const full = await server.ssrLoadModule('/src/content/lazy/one.md');
+      expect(Object.keys(meta)).toEqual(['metadata']);
+      expect(meta.metadata).toEqual({ title: 'One', draft: false });
+      expect(full.metadata).toEqual(meta.metadata);
+    } finally {
+      await server.close();
+    }
   });
 }, 60_000);
 

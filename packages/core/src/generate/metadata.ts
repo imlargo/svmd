@@ -53,10 +53,15 @@ export function appendMetadata(
   metadata: Record<string, unknown>,
   declared: ReadonlySet<string>,
 ): void {
-  builder.append('export const metadata = ' + uneval(metadata) + ';\n');
+  builder.append(metadataExport(metadata));
 
   const names = bindableKeys(metadata, declared);
   if (names.length > 0) {
     builder.append('const { ' + names.join(', ') + ' } = metadata;\n');
   }
+}
+
+/** The `export const metadata` statement, shared by the component and the metadata-only module. */
+export function metadataExport(metadata: Record<string, unknown>): string {
+  return 'export const metadata = ' + uneval(metadata) + ';\n';
 }

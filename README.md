@@ -283,9 +283,11 @@ import { z } from 'zod';
 
 export const { getCollection, getEntry } = createContent({
   blog: {
-    // Cheap index: frontmatter only, eager.
+    // Cheap index: frontmatter only, eager. `?metadata` imports a module with
+    // nothing but the frontmatter, so no component comes along with it.
     meta: import.meta.glob('/src/content/blog/**/*.md', {
       eager: true,
+      query: '?metadata',
       import: 'metadata',
     }),
     // Body: lazy, loaded only on the post's own route.
@@ -321,8 +323,10 @@ export const load = async ({ params }) => {
 };
 ```
 
-Keeping the bodies lazy matters: setting `eager: true` on both globs would put all 300 posts in
-the client bundle.
+Keeping the bodies lazy matters, and `?metadata` is what keeps them lazy: an eager
+`import: 'metadata'` without it imports each whole module, components included, so every body
+lands in the index's chunk and the lazy glob cannot split it out (Rollup and Rolldown report
+`INEFFECTIVE_DYNAMIC_IMPORT`).
 
 ## Errors
 

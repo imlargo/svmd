@@ -51,6 +51,23 @@ describe('createCompiler', () => {
   });
 });
 
+describe('compileMetadata', () => {
+  it('returns the metadata a full compile would, as a module', async () => {
+    const source = '---\ntitle: T\ndate: 2026-01-02\n---\n\n# {title}\n\n{#if x}\n';
+    const compiler = createCompiler();
+
+    const result = await compiler.compileMetadata(source, 'a.md');
+    expect(result.metadata).toEqual({ title: 'T', date: '2026-01-02' });
+    expect(result.code).toBe('export const metadata = {title:"T",date:"2026-01-02"};\n');
+  });
+
+  it('reports invalid frontmatter with its position in the file', async () => {
+    await expect(
+      createCompiler().compileMetadata('---\ntitle: [\n---\n', 'a.md'),
+    ).rejects.toMatchObject({ code: 'E006' });
+  });
+});
+
 describe('hoisting', () => {
   it('lifts scripts and styles wherever they were written', async () => {
     const result = await compile(

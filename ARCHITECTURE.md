@@ -244,6 +244,11 @@ Since the module id isn't a real file on disk, the file watcher can't find it di
 `hotUpdate` hook maps `file → file + suffix` to correct that. Source maps still point at the real
 `.md`, so errors and devtools show the original file.
 
+`import { metadata } from './post.md?metadata'` resolves to a second id, `/abs/post.md.svmd-metadata.js`:
+plain JavaScript holding only `export const metadata`, built from the frontmatter alone. An eager
+index of every file imports these, so no component rides along with it and each body keeps its own
+lazy chunk. Its value is the component's `metadata`, schema included.
+
 ### Frontmatter validation
 
 `frontmatter.schema` accepts anything implementing [Standard Schema](https://standardschema.dev)
