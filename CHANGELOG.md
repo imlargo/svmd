@@ -15,6 +15,16 @@ outside does not get a line here — the git history already has it.
 
 ## [Unreleased]
 
+### Fixed
+
+- A scoped `<style>` in a `.md` did not reach highlighted code, and Svelte reported its selectors as
+  unused: 0.3.0 hands that HTML to Svelte as `{@html}`, which gets no scoping class. In a file with
+  a scoped `<style>` it is now compiled as markup, with no a11y warning for Shiki's `tabindex`.
+- Editing a `.md` that a page renders through `@svmd/content` could leave that tab throwing
+  `TypeError: Illegal invocation` during hydration: the page reloaded before the SSR module was
+  invalidated, so the server rendered the old output. Every environment's module is now
+  invalidated before the reload.
+
 ## [0.3.0] - 2026-11-01
 
 ### Added
