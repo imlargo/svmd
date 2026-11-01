@@ -174,7 +174,7 @@ Frontmatter is parsed as YAML 1.2, so an unquoted date is a string. Use a schema
 | ------------------------------------------------ | --------------- |
 | Paragraph, heading, list and table text          | yes             |
 | Code blocks and inline code                      | yes             |
-| Raw HTML from a rehype plugin or the highlighter | yes             |
+| Raw HTML from a rehype plugin or the highlighter | `{@html}`       |
 | Expressions, blocks and `{@…}` tags              | no              |
 | Attributes                                       | no              |
 | `<script>` and `<style>`                         | no              |

@@ -96,16 +96,16 @@ and silently resolves re-exports to `any`.
       ├─ 4. transform          block and tag tree construction, nesting validation (E001–E005)
       │                        <script>/<style> extraction
       │
-      ├─ 5. remarkPlugins      the user's — fenced code arrives as a real `code` node
+      ├─ 5. highlight          optional (off by default; see "Highlighting" below)
       │
-      ├─ 6. mdast → hast       remark-rehype, passing svelte* nodes through
+      ├─ 6. remarkPlugins      the user's — unhighlighted fenced code arrives as a real `code` node
       │
-      ├─ 7. rehypePlugins      the user's
+      ├─ 7. mdast → hast       remark-rehype, passing svelte* nodes through
       │
-      ├─ 8. highlight          optional (off by default; see "Highlighting" below)
+      ├─ 8. rehypePlugins      the user's
       │
       ├─ 9. generate           hast → Svelte source, via SourceBuilder
-      │                        brace escaping in text/raw content
+      │                        brace escaping in text; raw HTML as `{@html}`
       │
       └─ 10. scripts           AST-guided merge, frontmatter bindings, metadata
       │
@@ -295,14 +295,15 @@ An attribute's `name` is stored verbatim, directive and modifiers included
 | ------------------------------------------------- | ----------------- | ------------------- |
 | `text`                                            | HTML-escaped      | `&#123;` / `&#125;` |
 | `element` (text properties)                       | attribute-escaped | `&#123;` / `&#125;` |
-| `raw` (from rehype or the highlighter)            | verbatim          | `&#123;` / `&#125;` |
+| `raw` (from rehype or the highlighter)            | `{@html "…"}`     | inside the string   |
 | `svelteRaw` (explicit opt-in)                     | verbatim          | verbatim            |
 | `svelte*Expression`, `svelte*Tag`, `svelteBranch` | verbatim          | verbatim            |
 | `svelteScript`, `svelteStyle`                     | verbatim          | verbatim            |
 
-`raw` nodes get their braces escaped because that's what Shiki produces: the highlighted HTML of
-`function f() {` contains a real, literal brace that Svelte would otherwise try to read as an
-expression. `&#123;` is valid inside HTML text or an attribute, and Svelte decodes it correctly.
+`raw` nodes are HTML the author did not write, so Svelte gets them as an opaque string: a literal
+brace in highlighted `function f() {` stays text, Svelte's a11y checks do not run on markup like
+Shiki's scrollable `<pre tabindex="0">`, and a long code block costs one string instead of a
+template node per token.
 
 ## Errors
 
