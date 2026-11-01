@@ -160,6 +160,37 @@ describe('metadata-only module', () => {
   });
 }, 60_000);
 
+describe('dependency scan', () => {
+  it('discovers a package imported only from a markdown script', async () => {
+    const { createServer } = await import('vite');
+
+    write(
+      'src/content/scanned.md',
+      "<script>\n  import { visit } from 'unist-util-visit';\n</script>\n\n# {typeof visit}\n",
+    );
+    write('src/entry-scan.js', "import C from './content/scanned.md';\nexport { C };\n");
+
+    const server = await createServer({
+      root,
+      logLevel: 'silent',
+      cacheDir: join(root, '.vite-scan'),
+      server: { middlewareMode: true, hmr: false, watch: null },
+      optimizeDeps: { entries: ['src/entry-scan.js'], force: true },
+      plugins: [svmd({ include: ['src/content/**/*.md'] }), svelte()],
+    });
+
+    try {
+      const optimizer = server.environments.client.depsOptimizer!;
+      await optimizer.init();
+      await optimizer.scanProcessing;
+
+      expect(Object.keys(optimizer.metadata.optimized)).toContain('unist-util-visit');
+    } finally {
+      await server.close();
+    }
+  });
+}, 60_000);
+
 describe('dev server', () => {
   it('serves a compiled component and re-serves it after an edit', async () => {
     const { createServer } = await import('vite');

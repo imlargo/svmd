@@ -68,6 +68,32 @@ describe('compileMetadata', () => {
   });
 });
 
+describe('imports', () => {
+  it('lists what every script imports, once, without compiling the body', () => {
+    const source = [
+      '<script module>import { a } from "pkg-a";</script>',
+      '',
+      '<script lang="ts">',
+      "  import type { T } from 'pkg-types';",
+      "  import { a as b } from 'pkg-a';",
+      "  import Card from './Card.svelte';",
+      '</script>',
+      '',
+      '{#if x}',
+      '<script>import "pkg-nested";</script>',
+      '{/if}',
+      '',
+    ].join('\n');
+
+    expect(createCompiler().imports(source, 'a.md')).toEqual([
+      'pkg-a',
+      'pkg-types',
+      './Card.svelte',
+      'pkg-nested',
+    ]);
+  });
+});
+
 describe('hoisting', () => {
   it('lifts scripts and styles wherever they were written', async () => {
     const result = await compile(

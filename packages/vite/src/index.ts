@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { createCompiler, SvmdError, type CompileOptions } from '@svmd/core';
-import { createFilter, type Plugin, type ResolvedConfig } from 'vite';
+import { createFilter, type Plugin, type ResolvedConfig, type Rolldown } from 'vite';
 
 export type { CompileOptions, SvmdError };
 export type { Highlighter, HighlightInput, StandardSchemaV1, SvmdWarning } from '@svmd/core';
@@ -116,9 +116,55 @@ export function svmd(options: SvmdOptions = {}): Plugin {
   const patterns = Array.isArray(include) ? include : [include as string | RegExp];
   const extensions = extensionsOf(patterns);
 
+  /**
+   * Turns a markdown file into the imports of its `<script>` blocks for Vite's
+   * dependency scanner, so a package only markdown imports is optimized up
+   * front instead of forcing a reload on first visit.
+   */
+  function scanPlugin(scanned: Set<string>): Rolldown.Plugin {
+    const id = new RegExp(`(?:${[...scanned].map((ext) => ext.replace('.', '\\.')).join('|')})$`);
+
+    return {
+      name: 'svmd:dep-scan',
+      load: {
+        filter: { id },
+        async handler(path) {
+          if (!filter(path)) return { code: '', moduleType: 'js' };
+
+          let specifiers: string[];
+          try {
+            specifiers = compiler.imports(await readFile(path, 'utf8'), path);
+          } catch {
+            // The scan only looks for imports; a broken file fails loudly where it is compiled.
+            specifiers = [];
+          }
+
+          return {
+            code: specifiers.map((specifier) => `import ${JSON.stringify(specifier)};`).join('\n'),
+            moduleType: 'js',
+          };
+        },
+      },
+    };
+  }
+
   return {
     name: 'svmd',
     enforce: 'pre',
+
+    config() {
+      // Vite 8 only: older majors scan with esbuild, and there a dependency
+      // imported only from markdown is still discovered on first request.
+      const meta = this.meta as { rolldownVersion?: string };
+      if (!extensions || !meta.rolldownVersion) return;
+
+      return {
+        optimizeDeps: {
+          extensions: [...extensions],
+          rolldownOptions: { plugins: [scanPlugin(extensions)] },
+        },
+      };
+    },
 
     configResolved(config: ResolvedConfig) {
       filter = createFilter(include, exclude, {
@@ -127,37 +173,10 @@ export function svmd(options: SvmdOptions = {}): Plugin {
     },
 
     async resolveId(source, importer, resolveOptions) {
-      // Vite's dependency scanner treats any resolved id ending in `.svelte` (or
-      // `.html`, `.vue`, `.astro`, `.imba`) as a real file and reads it straight
-      // off disk to pull out its `<script>` block for the deps it imports —
-      // that's `htmlTypesRE` in Vite's own scanner, matched against the id
-      // string alone, running in place of this plugin's `load` below. The
-      // shadow id is not a real file, so that read always throws `ENOENT`, on
-      // every markdown file imported from a `<script>` — statically, the way
-      // `svmd/content` never does, but a plain `import Post from './x.md'` does.
-      //
-      // `this.environment.mode` is *not* the way to detect this: the scanner
-      // runs its own bundled mini-plugins in a dedicated `scan` environment,
-      // but it calls out to registered plugins like this one through the real
-      // dev/build environment, so `this.environment.mode` there still reads
-      // `'dev'` — confirmed by logging it live against this exact repro. The
-      // reliable signal is `resolveOptions.scan`: not in Vite's public
-      // `ResolveIdOptions` type, but a real field on the object every
-      // `resolveId` call carries while scanning, and the documented way
-      // framework plugins are known to detect this phase in practice.
-      //
-      // Returning `{ external: true }` here is not enough: Vite's own
-      // scan-only resolver (`vite:dep-scan:resolve`) calls out to this hook,
-      // but then collapses whatever it returns to a bare id string before
-      // deciding — on its own, from that id's extension alone — whether the
-      // import is worth following further. A `.svelte`-suffixed id reads as
-      // "yes" regardless of `external`, straight into the same disk read.
-      // Not adding the suffix in the first place is what actually works: the
-      // real `.md` path that comes back doesn't match any extension the
-      // scanner treats specially, so *its* check is the one that stops here.
-      // A dependency reachable only through one markdown file's own
-      // `<script>` gets pre-bundled on first request rather than eagerly —
-      // the one cost, and it is invisible past a single extra reload in dev.
+      // While Vite scans for dependencies (`scan` is set but not in the public
+      // type), the real `.md` path goes back: the scanner would read a
+      // `.svelte`-suffixed id straight off disk and fail with ENOENT. The scan
+      // plugin from `config` below reads the file's imports instead.
       const scanning = (resolveOptions as { scan?: boolean }).scan === true;
 
       if (source.endsWith(SUFFIX) || source.endsWith(METADATA_SUFFIX)) {

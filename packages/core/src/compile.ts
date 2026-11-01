@@ -14,6 +14,7 @@ import { hoistScriptsAndStyles } from './transform/hoist.js';
 import type { Highlighter } from './transform/highlight.js';
 import { createPipeline, getPipeline, type Pipeline } from './parse/pipeline.js';
 import { mergeScripts } from './generate/script/merge.js';
+import { analyzeScript } from './generate/script/analyze.js';
 import { SourceBuilder, type EncodedSourceMap } from './internal/source-builder.js';
 import { svelteToHast } from './transform/to-hast.js';
 import { collectWarnings } from './diagnostics/warnings.js';
@@ -92,6 +93,11 @@ export interface Compiler {
    * `compile(...).metadata`, and cheap enough for an eager index of every file.
    */
   compileMetadata(source: string, filename?: string): Promise<MetadataResult>;
+  /**
+   * The module specifiers the file's `<script>` blocks import, read without
+   * running plugins or the highlighter. Throws the same structure errors as `compile`.
+   */
+  imports(source: string, filename?: string): string[];
 }
 
 /**
@@ -113,6 +119,15 @@ export function createCompiler(options: CompileOptions = {}): Compiler {
     async compileMetadata(source, filename) {
       const { metadata } = await readFrontmatter(source, filename, rest.frontmatter ?? {});
       return { code: metadataExport(metadata), metadata };
+    },
+    imports(source, filename) {
+      const tree = parseMarkdown(source, pipeline, filename);
+      const { scripts } = hoistScriptsAndStyles(tree, source, filename);
+      return [
+        ...new Set(
+          scripts.flatMap((script) => analyzeScript(script.value).imports.map((i) => i.specifier)),
+        ),
+      ];
     },
   };
 }

@@ -249,6 +249,13 @@ plain JavaScript holding only `export const metadata`, built from the frontmatte
 index of every file imports these, so no component rides along with it and each body keeps its own
 lazy chunk. Its value is the component's `metadata`, schema included.
 
+Vite's dependency scanner would read a `.svelte`-suffixed id straight off disk, so while scanning
+`resolveId` returns the real `.md` path. On Vite 8, `config` adds the include extensions to
+`optimizeDeps.extensions` with a scan plugin that loads each file as the bare imports of its
+`<script>` blocks (`compiler.imports`), so a package only markdown imports is optimized at startup
+instead of forcing a reload on first visit. On Vite 6 and 7 such a package is still found on
+first request.
+
 ### Frontmatter validation
 
 `frontmatter.schema` accepts anything implementing [Standard Schema](https://standardschema.dev)

@@ -18,6 +18,8 @@ export interface ImportInfo {
   end: number;
   /** Stable key: two imports with the same key bind the same things. */
   key: string;
+  /** The module specifier, e.g. `./Counter.svelte`. */
+  specifier: string;
   /** Names this statement binds. */
   locals: string[];
 }
@@ -100,6 +102,7 @@ function collect(node: Ranged, analysis: ScriptAnalysis): void {
         start: node.start ?? 0,
         end: node.end ?? 0,
         key: String(node.source.value) + '|' + parts.sort().join(','),
+        specifier: String(node.source.value),
         locals,
       });
       return;
