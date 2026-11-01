@@ -1,5 +1,6 @@
 <script module>
 export const metadata = {};
+export const headings = [];
 </script>
 <p>Inline code with syntax: <code>&#123;#if cond&#125;</code> and <code>&#123;price&#125;</code>.</p>
 <pre><code class="language-svelte">&lt;script&gt;

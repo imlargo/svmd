@@ -3,6 +3,7 @@
  * and the shape of the component it emits.
  */
 import { compile, createCompiler } from '@svmd/core';
+import type { Nodes as HastNodes, Root as HastRoot } from 'hast';
 import { compile as compileSvelte } from 'svelte/compiler';
 import { describe, expect, it } from 'vitest';
 
@@ -91,6 +92,66 @@ describe('imports', () => {
       './Card.svelte',
       'pkg-nested',
     ]);
+  });
+});
+
+describe('headings', () => {
+  /** What `rehype-slug` sees: the text nodes of a heading, and nothing else. */
+  const slug = () => (tree: HastRoot) => {
+    const text = (node: HastNodes): string =>
+      node.type === 'text'
+        ? node.value
+        : 'children' in node
+          ? node.children.map(text).join('')
+          : '';
+    const visit = (node: HastNodes): void => {
+      if (node.type === 'element' && /^h[1-6]$/.test(node.tagName)) {
+        node.properties.id = text(node).toLowerCase().replace(/\W+/g, '-');
+      }
+      if ('children' in node) node.children.forEach(visit);
+    };
+    visit(tree);
+  };
+
+  it('gives rehype plugins the text of a frontmatter expression', async () => {
+    const result = await compile('---\ntitle: Hello\n---\n\n# {title}\n\n## Install {title}\n', {
+      rehypePlugins: [slug],
+    });
+
+    expect(result.code).toContain('<h1 id="hello">Hello</h1>');
+    expect(result.headings).toEqual([
+      { depth: 1, text: 'Hello', id: 'hello' },
+      { depth: 2, text: 'Install Hello', id: 'install-hello' },
+    ]);
+    expect(result.code).toContain(
+      'export const headings = [{"depth":1,"text":"Hello","id":"hello"},{"depth":2,"text":"Install Hello","id":"install-hello"}];',
+    );
+  });
+
+  it('keeps an expression the author shadowed, or whose value is not text', async () => {
+    const result = await compile(
+      '---\ntitle: A\ntags: [x]\n---\n\n<script>let title = $state("B");</script>\n\n{title} {tags}\n',
+    );
+    expect(result.code).toContain('{title}');
+    expect(result.code).toContain('{tags}');
+    expect(result.code).not.toMatch(/^A$/m);
+  });
+
+  it('lists headings inside components and leaves out ones with runtime text', async () => {
+    const result = await compile(
+      '<Callout>\n\n## Inside\n\n</Callout>\n\n# Count {count}\n\n{#each rows as row}\n\n## {row.title}\n\n{/each}\n',
+    );
+    expect(result.headings).toEqual([{ depth: 2, text: 'Inside' }]);
+  });
+
+  it('defers to a `headings` the author declared', async () => {
+    const result = await compile(
+      '<script module>export const headings = ["mine"];</script>\n\n# Title\n',
+    );
+    expect(result.code).not.toContain('export const headings = [{');
+    expect(() =>
+      compileSvelte(result.code, { filename: 'x.svelte', generate: 'client' }),
+    ).not.toThrow();
   });
 });
 

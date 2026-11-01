@@ -270,6 +270,20 @@ svmd({
 
 The schema's output is what ends up in `metadata`, so coercions and defaults apply.
 
+### Headings
+
+Every compiled file also exports its headings, for a table of contents or a search index:
+
+```js
+import Post, { headings } from './post.md';
+// [{ depth: 1, text: 'My first post', id: 'my-first-post' }, …]
+```
+
+`id` is whatever a rehype plugin such as `rehype-slug` gave the heading; svmd adds none itself.
+A `{key}` naming a frontmatter string, number or boolean is written out as its text before the
+rehype plugins run, so `# {title}` gets a real id. A heading whose text depends on a runtime value
+(`## {row.title}` inside `{#each}`) is left out.
+
 ## Content collections
 
 `@svmd/content` is a minimal layer over `import.meta.glob`. No build step, no generated directory,

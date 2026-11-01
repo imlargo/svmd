@@ -17,6 +17,7 @@ import { mergeScripts } from './generate/script/merge.js';
 import { analyzeScript } from './generate/script/analyze.js';
 import { SourceBuilder, type EncodedSourceMap } from './internal/source-builder.js';
 import { svelteToHast } from './transform/to-hast.js';
+import { collectHeadings, inlineFrontmatter, type Heading } from './transform/headings.js';
 import { collectWarnings } from './diagnostics/warnings.js';
 
 export interface CompileOptions {
@@ -55,6 +56,8 @@ export interface CompileResult {
   map: EncodedSourceMap;
   /** The frontmatter, after optional schema validation. */
   metadata: Record<string, unknown>;
+  /** The document's headings, after the rehype plugins ran; also exported as `headings`. */
+  headings: Heading[];
   /** Non-fatal diagnostics, in document order. */
   warnings: SvmdWarning[];
   /** Data collected by remark/rehype plugins on the virtual file. */
@@ -155,10 +158,12 @@ async function compileWith(
   const scripts = mergeScripts(hoisted.scripts, hoisted.styles, { filename, source });
 
   const hast = svelteToHast(tree);
+  inlineFrontmatter(hast, metadata, scripts.declared);
   await pipeline.html.run(hast, file);
 
+  const headings = collectHeadings(hast);
   const builder = new SourceBuilder();
-  emitComponent(builder, { hast, metadata, scripts });
+  emitComponent(builder, { hast, metadata, headings, scripts });
 
   return {
     code: builder.toString(),
@@ -168,6 +173,7 @@ async function compileWith(
       ...(filename ? { file: filename + '.svelte' } : {}),
     }),
     metadata,
+    headings,
     warnings,
     data: file.data,
   };

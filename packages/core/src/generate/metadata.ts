@@ -4,8 +4,8 @@ import type { SourceBuilder } from '../internal/source-builder.js';
 /**
  * Names that must not be bound from frontmatter.
  *
- * The reserved words plus `metadata` itself, which is the binding they would be
- * destructured from.
+ * The reserved words plus the module's own exports: `metadata`, which they are
+ * destructured from, and `headings`.
  */
 const RESERVED = new Set([
   ...`arguments await break case catch class const continue debugger default delete do else
@@ -13,6 +13,7 @@ const RESERVED = new Set([
 	interface let new null package private protected public return static super switch this
 	throw true try typeof var void while with yield`.split(/\s+/),
   'metadata',
+  'headings',
 ]);
 
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
@@ -26,7 +27,10 @@ const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
  * reserved word — all of which would otherwise turn a perfectly good document
  * into a syntax error somewhere the author cannot see.
  */
-function bindableKeys(metadata: Record<string, unknown>, declared: ReadonlySet<string>): string[] {
+export function bindableKeys(
+  metadata: Record<string, unknown>,
+  declared: ReadonlySet<string>,
+): string[] {
   const names: string[] = [];
 
   for (const key of Object.keys(metadata)) {

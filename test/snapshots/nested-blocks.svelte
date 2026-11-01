@@ -1,5 +1,6 @@
 <script module>
 export const metadata = {};
+export const headings = [];
 </script>
 {#each rows as row, index (row.id)}
 {#if row.visible}

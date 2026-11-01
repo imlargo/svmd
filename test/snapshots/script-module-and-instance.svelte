@@ -1,5 +1,6 @@
 <script module>
 export const metadata = {};
+export const headings = [];
 
   export const prerender = true;
   import { base } from './shared.js';

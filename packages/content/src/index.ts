@@ -30,6 +30,8 @@ export type { StandardSchemaV1 };
 export interface ContentModule<Data> {
   default: Component<Record<string, never>>;
   metadata: Data;
+  /** Headings with static text, in document order; `id` when a rehype plugin set one. */
+  headings: { depth: number; text: string; id?: string }[];
 }
 
 export interface CollectionDefinition<Data = Record<string, unknown>> {

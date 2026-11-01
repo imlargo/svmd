@@ -4,7 +4,13 @@ import { createFilter, type Plugin, type ResolvedConfig, type Rolldown } from 'v
 import { remapSvelteWarnings } from './warnings.js';
 
 export type { CompileOptions, SvmdError };
-export type { Highlighter, HighlightInput, StandardSchemaV1, SvmdWarning } from '@svmd/core';
+export type {
+  Heading,
+  Highlighter,
+  HighlightInput,
+  StandardSchemaV1,
+  SvmdWarning,
+} from '@svmd/core';
 
 export interface SvmdOptions extends Omit<CompileOptions, 'filename'> {
   /**

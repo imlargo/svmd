@@ -1,5 +1,6 @@
 <script module>
 export const metadata = {};
+export const headings = [];
 </script>
 <p>Use the &#123;#if&#125; block when you need a branch, and close it with &#123;/if&#125; at the end.</p>
 <p>Paste &#123; "name": "foo", "n": 1 &#125; into your config.</p>
