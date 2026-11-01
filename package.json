@@ -61,7 +61,7 @@
     "micromark": "^4.0.2",
     "prettier": "^3.9.6",
     "publint": "^0.3.24",
-    "svelte": "^5.57.0",
+    "svelte": "^5.57.1",
     "tsdown": "^0.22.14",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.67.0",

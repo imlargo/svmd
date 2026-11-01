@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Card, CardHeader, CardTitle, CardDescription } from '$lib/components/ui/card/index.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Card, CardHeader, CardTitle, CardDescription } from '#lib/components/ui/card/index.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { resolve } from '$app/paths';
 
 	let { data } = $props();

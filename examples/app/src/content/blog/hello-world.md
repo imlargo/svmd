@@ -5,8 +5,8 @@ tags: [svelte, markdown]
 ---
 
 <script lang="ts">
-	import Counter from '$lib/Counter.svelte';
-	import Callout from '$lib/Callout.svelte';
+	import Counter from '#lib/Counter.svelte';
+	import Callout from '#lib/Callout.svelte';
 </script>
 
 # {title}

@@ -139,7 +139,7 @@ Dotted and namespaced names work as well:
 </script>
 
 <script lang="ts">
-  import Counter from '$lib/Counter.svelte';
+  import Counter from '#lib/Counter.svelte';
   let count: number = $state(0);
 </script>
 
