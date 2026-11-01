@@ -283,6 +283,35 @@ describe('dev server', () => {
     }
   });
 
+  it('resolves the URL Vite gives a module requested by its markdown path', async () => {
+    const { createServer } = await import('vite');
+
+    write('src/content/by-url.md', '---\ntitle: T\n---\n\n# by url\n');
+    const server = await createServer({
+      root,
+      logLevel: 'silent',
+      server: { middlewareMode: true, hmr: false, watch: null },
+      plugins: [svmd({ include: ['src/content/**/*.md'] }), svelte()],
+    });
+
+    try {
+      const client = server.environments.client;
+      // SvelteKit requests route files this way; Vite then appends the id's extension to the URL.
+      for (const url of ['/src/content/by-url.md', '/src/content/by-url.md?metadata']) {
+        await client.transformRequest(url);
+        const [module] = [...client.moduleGraph.urlToModuleMap.values()].filter((entry) =>
+          entry.url.startsWith(url.replace(/\?.*/, '') + '.'),
+        );
+        expect(module?.url).toMatch(/\.md\.(svelte|js)/);
+        // After an edit the cached result is gone, and the URL has to resolve on its own.
+        client.moduleGraph.invalidateModule(module!);
+        expect(await client.transformRequest(module!.url)).not.toBeNull();
+      }
+    } finally {
+      await server.close();
+    }
+  });
+
   it('maps a watched markdown file onto its shadow module', async () => {
     const { createServer } = await import('vite');
 
@@ -305,19 +334,56 @@ describe('dev server', () => {
       const hotUpdate = plugin.hotUpdate as unknown as (
         this: { environment: typeof client },
         context: { file: string; modules: unknown[] },
-      ) => unknown[] | undefined;
+      ) => Promise<unknown[] | undefined>;
 
-      const result = hotUpdate.call({ environment: client }, { file, modules: [] });
+      const result = await hotUpdate.call({ environment: client }, { file, modules: [] });
       expect(result).toHaveLength(1);
       expect((result![0] as { id: string }).id).toBe(file + '.svmd.svelte');
 
       // A file outside the globs is left to other plugins.
       expect(
-        hotUpdate.call(
+        await hotUpdate.call(
           { environment: client },
           { file: join(root, 'src/other/ignored.md'), modules: [] },
         ),
       ).toBeUndefined();
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('updates the ?metadata module only when the frontmatter changed', async () => {
+    const { createServer } = await import('vite');
+
+    write('src/content/indexed.md', '---\ntitle: A\n---\n\nbody one\n');
+
+    const plugin = svmd({ include: ['src/content/**/*.md'] });
+    const server = await createServer({
+      root,
+      logLevel: 'silent',
+      server: { middlewareMode: true, hmr: false, watch: null },
+      plugins: [plugin, svelte()],
+    });
+
+    try {
+      const client = server.environments.client;
+      await client.transformRequest('/src/content/indexed.md');
+      await client.transformRequest('/src/content/indexed.md?metadata');
+
+      const file = join(root, 'src/content/indexed.md');
+      const hotUpdate = plugin.hotUpdate as unknown as (
+        this: { environment: typeof client },
+        context: { file: string; modules: unknown[] },
+      ) => Promise<{ id: string }[] | undefined>;
+      const ids = async () =>
+        (await hotUpdate.call({ environment: client }, { file, modules: [] }))?.map((m) => m.id);
+
+      // A body edit is Svelte HMR; reloading every page that lists the file would be noise.
+      write('src/content/indexed.md', '---\ntitle: A\n---\n\nbody two\n');
+      expect(await ids()).toEqual([file + '.svmd.svelte']);
+
+      write('src/content/indexed.md', '---\ntitle: B\n---\n\nbody two\n');
+      expect(await ids()).toEqual([file + '.svmd.svelte', file + '.svmd-metadata.js']);
     } finally {
       await server.close();
     }
@@ -364,7 +430,11 @@ describe('resolveId', () => {
   ) => Promise<unknown>;
 
   const context = {
-    resolve: (source: string) => Promise.resolve({ id: join(root, source), external: false }),
+    resolve: (source: string) =>
+      Promise.resolve({
+        id: source.startsWith(root) ? source : join(root, source),
+        external: false,
+      }),
   };
 
   function resolve(
@@ -425,8 +495,14 @@ describe('resolveId', () => {
 
   it('hands an already-suffixed id back, except while scanning', async () => {
     const id = join(root, 'src/content/post.md.svmd.svelte');
-    expect(await resolve(id, {})).toBe(id);
+    expect(((await resolve(id, {})) as { id: string }).id).toBe(id);
     expect(await resolve(id, { scan: true })).toBeNull();
+  });
+
+  /** The browser re-imports a module by its URL on HMR, query and all. */
+  it('resolves the root-relative URL of a suffixed id', async () => {
+    const resolved = (await resolve('/src/content/post.md.svmd.svelte?t=123')) as { id: string };
+    expect(resolved.id).toBe(join(root, 'src/content/post.md.svmd.svelte') + '?t=123');
   });
 
   /** `?raw` and friends mean "the file itself", so compiling it would be wrong. */

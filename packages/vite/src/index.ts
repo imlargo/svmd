@@ -1,6 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import { createCompiler, SvmdError, type CompileOptions, type EncodedSourceMap } from '@svmd/core';
-import { createFilter, type Plugin, type ResolvedConfig, type Rolldown } from 'vite';
+import {
+  createFilter,
+  type EnvironmentModuleNode,
+  type Plugin,
+  type ResolvedConfig,
+  type Rolldown,
+} from 'vite';
 import { kitRouteGlobs } from './kit.js';
 import { remapSvelteWarnings } from './warnings.js';
 
@@ -48,6 +54,12 @@ const OWN_ID = /\.svmd(?:\.svelte|-metadata\.js)(?:[?#]|$)/;
 function extensionPattern(extensions: Set<string>): RegExp {
   const names = [...extensions].map((extension) => extension.slice(1)).join('|');
   return new RegExp(`\\.(?:${names})(?:[?#]|$)`, 'i');
+}
+
+/** The same, followed by the extension Vite appends to such a module's URL (see `withoutAppendedExtension`). */
+function appendedExtensionPattern(extensions: Set<string>): RegExp {
+  const names = [...extensions].map((extension) => extension.slice(1)).join('|');
+  return new RegExp(`\\.(?:${names})\\.(?:svelte|js)(?:[?#]|$)`, 'i');
 }
 
 /** Queries whose meaning is "give me the file itself, do not compile it". */
@@ -101,6 +113,25 @@ function isMetadataQuery(query: string): boolean {
   return queryKeys(query).includes(METADATA_QUERY);
 }
 
+/**
+ * Requested by its `.md` path, a module gets the extension of its resolved id
+ * appended to its URL (`/post.md` becomes `/post.md.svelte`, `/post.md?metadata`
+ * becomes `/post.md.js?metadata`), and SvelteKit requests route files that way.
+ * Returns the path without it, so that URL resolves again; `null` when there is none.
+ */
+function withoutAppendedExtension(
+  path: string,
+  query: string,
+  extensions: Set<string> | null,
+): string | null {
+  const appended = isMetadataQuery(query) ? '.js' : '.svelte';
+  if (!path.endsWith(appended)) return null;
+
+  const base = path.slice(0, -appended.length);
+  if (base.lastIndexOf('.') <= base.lastIndexOf('/')) return null;
+  return hasKnownExtension(base, extensions) ? base : null;
+}
+
 /** Markdown compiled to Svelte components, scoped by glob. */
 export function svmd(options: SvmdOptions = {}): Plugin {
   const { include = ['**/*.md'], exclude = ['**/node_modules/**'], ...compileOptions } = options;
@@ -111,6 +142,8 @@ export function svmd(options: SvmdOptions = {}): Plugin {
   let filter: (id: string) => boolean = () => false;
   /** The last source map of each compiled file, for remapping Svelte's warnings. */
   const maps = new Map<string, EncodedSourceMap>();
+  /** The last `?metadata` module served for each file, to tell a frontmatter edit from a body edit. */
+  const metadataCodes = new Map<string, string>();
   const patterns: readonly (string | RegExp)[] =
     typeof include === 'string' || include instanceof RegExp ? [include] : include;
   const extensions = extensionsOf(patterns);
@@ -145,6 +178,16 @@ export function svmd(options: SvmdOptions = {}): Plugin {
     };
   }
 
+  async function metadataChanged(filename: string): Promise<boolean> {
+    try {
+      const { code } = await compiler.compileMetadata(await readFile(filename, 'utf8'), filename);
+      return code !== metadataCodes.get(filename);
+    } catch {
+      // Invalid frontmatter: reload, so the error reaches the page from `load`.
+      return true;
+    }
+  }
+
   return {
     name: 'svmd',
     enforce: 'pre',
@@ -173,7 +216,13 @@ export function svmd(options: SvmdOptions = {}): Plugin {
     // Filters keep Rolldown from calling into JavaScript for every module of
     // the app; the handlers still check, for Vite versions that ignore them.
     resolveId: {
-      ...(extensions ? { filter: { id: [extensionPattern(extensions), OWN_ID] } } : {}),
+      ...(extensions
+        ? {
+            filter: {
+              id: [extensionPattern(extensions), appendedExtensionPattern(extensions), OWN_ID],
+            },
+          }
+        : {}),
       async handler(source, importer, resolveOptions) {
         // While Vite scans for dependencies (`scan` is set but not in the public
         // type), the real `.md` path goes back: the scanner would read a
@@ -181,21 +230,36 @@ export function svmd(options: SvmdOptions = {}): Plugin {
         // plugin from `config` below reads the file's imports instead.
         const scanning = (resolveOptions as { scan?: boolean }).scan === true;
 
-        if (source.endsWith(SUFFIX) || source.endsWith(METADATA_SUFFIX)) {
-          return scanning ? null : source;
+        const split = splitId(source);
+
+        // An id this plugin made, absolute or as the root-relative URL the
+        // browser re-imports it by (`/src/post.md.svmd.svelte?t=…` on HMR).
+        const suffix = [SUFFIX, METADATA_SUFFIX].find((own) => split.path.endsWith(own));
+        if (suffix) {
+          if (scanning) return null;
+          const markdown = await this.resolve(split.path.slice(0, -suffix.length), importer, {
+            ...resolveOptions,
+            skipSelf: true,
+          });
+          if (!markdown || markdown.external) return null;
+          return { ...markdown, id: splitId(markdown.id).path + suffix + split.query };
         }
 
-        const { path, query } = splitId(source);
+        const { query } = split;
+        const unappended = withoutAppendedExtension(split.path, query, extensions);
+        const path = unappended ?? split.path;
         if (!hasKnownExtension(path, extensions) || isPassthrough(query)) return null;
 
-        const resolved = await this.resolve(source, importer, {
+        const resolved = await this.resolve(path + query, importer, {
           ...resolveOptions,
           skipSelf: true,
         });
-        if (!resolved || resolved.external) return resolved;
+        if (!resolved || resolved.external) return unappended ? null : resolved;
 
         const target = splitId(resolved.id);
-        if (!filter(target.path) || scanning) return resolved;
+        // A real `post.md.svelte` file is not ours to resolve.
+        if (!filter(target.path)) return unappended ? null : resolved;
+        if (scanning) return resolved;
 
         if (isMetadataQuery(target.query)) {
           return { ...resolved, id: target.path + METADATA_SUFFIX };
@@ -218,6 +282,7 @@ export function svmd(options: SvmdOptions = {}): Plugin {
               await readFile(filename, 'utf8'),
               filename,
             );
+            metadataCodes.set(filename, result.code);
             return { code: result.code, map: null };
           } catch (error) {
             throw toRollupError(error);
@@ -286,18 +351,32 @@ export function svmd(options: SvmdOptions = {}): Plugin {
 
     /**
      * The watcher fires for `post.md`, but the module graph knows the suffixed
-     * ids; hand those to vite-plugin-svelte, which does the Svelte HMR after this.
+     * ids; invalidate them and hand them to vite-plugin-svelte, which does the
+     * Svelte HMR after this.
+     * The `?metadata` module has no HMR boundary, so it is updated, reloading
+     * the page, only when the frontmatter itself changed.
      */
-    hotUpdate(context) {
+    async hotUpdate(context) {
       const { file, modules } = context;
       if (!filter(file)) return;
 
       const { moduleGraph } = this.environment;
-      const shadows = [
-        ...(moduleGraph.getModulesByFile(file + SUFFIX) ?? []),
-        ...(moduleGraph.getModulesByFile(file + METADATA_SUFFIX) ?? []),
-      ];
+      const shadows = [...(moduleGraph.getModulesByFile(file + SUFFIX) ?? [])];
+
+      const metadataModules = moduleGraph.getModulesByFile(file + METADATA_SUFFIX);
+      if (metadataModules?.size && (await metadataChanged(file))) {
+        shadows.push(...metadataModules);
+      }
+
       if (shadows.length === 0) return;
+
+      // Vite invalidated only the modules keyed by `post.md`. Without this,
+      // vite-plugin-svelte re-reads the cached result, finds it unchanged and
+      // skips the update, and the page falls back to a full reload.
+      const seen = new Set<EnvironmentModuleNode>();
+      for (const shadow of shadows) {
+        moduleGraph.invalidateModule(shadow, seen, context.timestamp, true);
+      }
 
       return [...modules, ...shadows];
     },
