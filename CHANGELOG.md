@@ -44,6 +44,11 @@ outside does not get a line here — the git history already has it.
 
 - A `$`-prefixed frontmatter key (`$schema`) failed the Svelte compile with
   `dollar_prefix_invalid`; it stays in `metadata` and is no longer bound as a local.
+- Editing a `.md` in `vite dev` served the old output: the compiled module was never
+  invalidated, so the client skipped the update and SSR re-rendered stale content. A `+page.md`
+  now hot-updates; a `?metadata` module only reloads the page when the frontmatter changed.
+- A route `.md` re-imported by URL in dev failed with `Failed to load url …/+page.md.svelte`, and
+  an HMR re-import of `….md.svmd.svelte?t=…` failed with `ENOENT`.
 
 ## [0.2.0] - 2026-09-19
 

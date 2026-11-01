@@ -426,7 +426,7 @@ One person maintains this. What bounds the risk if that changes:
   fix later is a diff review too.
 - **MIT, everywhere.** Every package, forks included, carries its own `LICENSE` and, where it
   applies, the upstream notice the fork requires.
-- **400 tests**, across grammar tokens, tree construction, fixture-vs-`svelte.compile` snapshots,
+- **403 tests**, across grammar tokens, tree construction, fixture-vs-`svelte.compile` snapshots,
   documented mdsvex regressions, source maps, and a real SvelteKit build. See [Testing](#testing).
 
 ## Runtimes
