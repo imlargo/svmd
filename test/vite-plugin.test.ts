@@ -1,5 +1,5 @@
 /**
- * The integration the whole design rests on (D1, D3, I10): a `.md` inside the
+ * The integration the whole design rests on: a `.md` inside the
  * configured globs becomes a Svelte component through the official plugin, and
  * nothing had to be registered in `svelte.config.js`.
  */
@@ -267,7 +267,7 @@ describe('dev server', () => {
       const id = file + '.svmd.svelte';
 
       // The module graph knows the shadow id, so the watcher path has to be
-      // bridged; this is what the `hotUpdate` hook does (§I10).
+      // bridged; this is what the `hotUpdate` hook does.
       expect(client.moduleGraph.getModulesByFile(id)?.size).toBe(1);
       expect(client.moduleGraph.getModulesByFile(file)).toBeUndefined();
 

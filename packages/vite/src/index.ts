@@ -15,12 +15,9 @@ export type {
 
 export interface SvmdOptions extends Omit<CompileOptions, 'filename'> {
   /**
-   * Files to compile. Globs are resolved against the Vite root.
-   *
-   * This is the whole point of the plugin: scoping happens here, never through
-   * `extensions` in `svelte.config.js`, so a `.md` outside these globs stays an
-   * ordinary asset and a `.md` inside `src/routes` never accidentally becomes a
-   * page (D3).
+   * Files to compile, as globs resolved against the Vite root. A `.md` outside
+   * them stays an ordinary asset. Under SvelteKit, route files (`+page.md`) of an
+   * extension in its `extensions` are added automatically.
    *
    * @default ['**\/*.md']
    */
@@ -31,12 +28,8 @@ export interface SvmdOptions extends Omit<CompileOptions, 'filename'> {
 }
 
 /**
- * Marks the module as Svelte for `@sveltejs/vite-plugin-svelte`.
- *
- * That plugin's one stable contract across versions is "compile what ends in
- * `.svelte`", so the module id — not the file on disk — carries the extension.
- * Source maps still point at the `.md`, and `hotUpdate` below reconnects the
- * watcher to the shadow id (§I10).
+ * Marks the module as Svelte for `@sveltejs/vite-plugin-svelte`, whose one
+ * contract stable across versions is "compile what ends in `.svelte`".
  */
 const SUFFIX = '.svmd.svelte';
 
@@ -61,15 +54,9 @@ function extensionPattern(extensions: Set<string>): RegExp {
 const PASSTHROUGH_QUERIES = new Set(['raw', 'url', 'inline', 'worker', 'sharedworker']);
 
 /**
- * The file extensions the include globs can possibly match.
- *
- * `resolveId` runs for every import in the project, so it needs a cheap way to
- * skip the ones that obviously are not markdown before paying for
- * `this.resolve`. Deriving the set from the globs — rather than hard-coding
- * `.md` — is what makes `include: ['**\/*.svx']` actually work.
- *
- * Returns `null` when the patterns do not all end in a plain extension, in
- * which case every import is resolved and the filter decides.
+ * The file extensions the include globs can match, so `include: ['**\/*.svx']`
+ * compiles `.svx`. `null` when a pattern does not end in a plain extension; then
+ * every import is resolved and the filter decides.
  */
 function extensionsOf(patterns: readonly (string | RegExp)[]): Set<string> | null {
   const extensions = new Set<string>();
@@ -117,18 +104,10 @@ function isMetadataQuery(query: string): boolean {
 /** Markdown compiled to Svelte components, scoped by glob. */
 export function svmd(options: SvmdOptions = {}): Plugin {
   const { include = ['**/*.md'], exclude = ['**/node_modules/**'], ...compileOptions } = options;
-  // One compiler for the life of the plugin: building a unified pipeline
-  // instantiates every plugin, and a dev server compiles the same options
-  // thousands of times.
+  // One compiler for the life of the plugin: building the pipeline instantiates every plugin.
   const compiler = createCompiler(compileOptions satisfies CompileOptions);
 
-  /**
-   * Built in `configResolved` rather than here so that globs resolve against
-   * the Vite root, the way every other plugin's `include` behaves. Resolving
-   * them against `process.cwd()` silently matches nothing whenever the root
-   * and the working directory differ — as they do under SvelteKit's `vite
-   * build` from a subdirectory, and in monorepos.
-   */
+  // Built in `configResolved`, so globs resolve against the Vite root and not the working directory.
   let filter: (id: string) => boolean = () => false;
   /** The last source map of each compiled file, for remapping Svelte's warnings. */
   const maps = new Map<string, EncodedSourceMap>();
@@ -275,20 +254,10 @@ export function svmd(options: SvmdOptions = {}): Plugin {
     },
 
     /**
-     * Re-key the build manifest so a `.md` that *is* a route file survives.
-     *
-     * SvelteKit walks the filesystem for routes, so a `+page.md` (with `.md`
-     * in its `extensions`) enters its route table under that real path. After
-     * the build it resolves each route to a chunk by looking that same path up
-     * in Vite's manifest, read off disk — `out/server/.vite/manifest.json`.
-     * The manifest is keyed by module id, and this plugin's ids carry the
-     * shadow suffix, so the lookup misses and the build dies on
-     * `Could not find file "src/routes/x/+page.md" in Vite manifest`: in the
-     * adapter build only, never in dev, where nothing reconciles the two.
-     *
-     * Adding the un-suffixed key alongside the real one costs a few bytes and
-     * makes the lookup land. `order: 'post'` so Vite's own manifest plugin has
-     * already emitted the asset by the time this runs.
+     * SvelteKit finds a `+page.md` route's chunk by its real path in Vite's
+     * manifest, which is keyed by the suffixed id; without the extra key the
+     * adapter build fails with `Could not find file … in Vite manifest`.
+     * `order: 'post'` runs after Vite's manifest plugin emitted the asset.
      */
     generateBundle: {
       order: 'post',
@@ -316,9 +285,8 @@ export function svmd(options: SvmdOptions = {}): Plugin {
     },
 
     /**
-     * The watcher fires for `post.md`, but the module graph knows
-     * `post.md.svmd.svelte`. Reconnect the two so `vite-plugin-svelte` — which
-     * runs after this hook and does the real Svelte HMR — sees the module.
+     * The watcher fires for `post.md`, but the module graph knows the suffixed
+     * ids; hand those to vite-plugin-svelte, which does the Svelte HMR after this.
      */
     hotUpdate(context) {
       const { file, modules } = context;

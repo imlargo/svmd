@@ -25,7 +25,7 @@ export interface CompileOptions {
   filename?: string | undefined;
   remarkPlugins?: PluggableList | undefined;
   rehypePlugins?: PluggableList | undefined;
-  /** Syntax highlighting for fenced code blocks. Off by default (§I12). */
+  /** Syntax highlighting for fenced code blocks. Off by default. */
   highlight?: Highlighter | false | undefined;
   frontmatter?: FrontmatterOptions | undefined;
   /** GitHub Flavoured Markdown: tables, strikethrough, task lists. Default on. */
@@ -69,7 +69,7 @@ export interface CompileResult {
  *
  * The result is Svelte, not JavaScript: `@sveltejs/vite-plugin-svelte` compiles
  * it afterwards, which is what gives TypeScript, HMR and the rest of the
- * toolchain for free (D2).
+ * toolchain for free.
  *
  * Compiling many files with the same settings — a build, a dev server — should
  * go through `createCompiler` instead, which builds the pipeline once.

@@ -1,5 +1,5 @@
 /**
- * Escaping (§8.3, D5).
+ * Escaping.
  *
  * Braces are the whole point. By the time a value reaches these functions the
  * grammar has already lifted every real Svelte construct out into its own node,

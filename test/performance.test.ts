@@ -1,8 +1,8 @@
 /**
- * NF3: under 20 ms per file, cold, median, for a 200-line document.
+ * Under 20 ms per file, cold, median, for a 200-line document.
  *
  * The number matters less than the shape: nothing here should be accidentally
- * quadratic, and acorn should stay off the hot path for ordinary prose (§I2).
+ * quadratic, and acorn should stay off the hot path for ordinary prose.
  */
 import { compile } from '@svmd/core';
 import { describe, expect, it } from 'vitest';

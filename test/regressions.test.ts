@@ -165,13 +165,13 @@ describe('L6 — markdown inside components and HTML', () => {
   });
 });
 
-describe('G1 / G2 — gotchas the grammar removes', () => {
-  it('accepts an object literal with spaces in an attribute (G1)', async () => {
+describe('gotchas the grammar removes', () => {
+  it('accepts an object literal with spaces in an attribute', async () => {
     const result = await compile('<Chart data={{ a: 1 }} />\n');
     expect(result.code).toContain('<Chart data={{ a: 1 }} />');
   });
 
-  it('accepts a dotted component name (G2)', async () => {
+  it('accepts a dotted component name', async () => {
     const result = await compile('<Foo.Bar />\n');
     expect(result.code).toContain('<Foo.Bar />');
   });

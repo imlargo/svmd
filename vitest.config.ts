@@ -22,7 +22,7 @@ export default defineConfig({
     include: ['test/**/*.test.ts', 'packages/*/test/*.js'],
     exclude: ['**/node_modules/**', 'examples/**'],
     environment: 'node',
-    // performance.test.ts asserts the NF3 budget in wall-clock time, which is
+    // performance.test.ts asserts a time budget in wall-clock time, which is
     // meaningless while other workers compete for the same cores.
     fileParallelism: false,
   },

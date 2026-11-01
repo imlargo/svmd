@@ -416,9 +416,9 @@ a dependency.
 
 One person maintains this. What bounds the risk if that changes:
 
-- **No hidden runtime.** The compiler is ~1,900 lines across 18 files in
+- **No hidden runtime.** The compiler is ~2,150 lines across 19 files in
   [`packages/core`](./packages/core); the plugin, the content layer and the Shiki adapter add
-  under 500 more. Reading it is an afternoon, not an archaeology project.
+  under 800 more. Reading it is an afternoon, not an archaeology project.
 - **The forks are isolated and documented.** Three packages (the grammar, its expression
   factory, and the MDAST builder) are forks of Titus Wormer's MDX packages (MIT), kept
   deliberately diffable against upstream. [`FORK.md`](./packages/micromark-extension-svelte/FORK.md)
@@ -426,7 +426,7 @@ One person maintains this. What bounds the risk if that changes:
   fix later is a diff review too.
 - **MIT, everywhere.** Every package, forks included, carries its own `LICENSE` and, where it
   applies, the upstream notice the fork requires.
-- **375 tests**, across grammar tokens, tree construction, fixture-vs-`svelte.compile` snapshots,
+- **400 tests**, across grammar tokens, tree construction, fixture-vs-`svelte.compile` snapshots,
   documented mdsvex regressions, source maps, and a real SvelteKit build. See [Testing](#testing).
 
 ## Runtimes

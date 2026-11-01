@@ -1,5 +1,5 @@
 /**
- * NF1: an error from the Svelte compiler must point at the line of the `.md`
+ * An error from the Svelte compiler must point at the line of the `.md`
  * the author wrote, not at the generated component.
  */
 import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping';

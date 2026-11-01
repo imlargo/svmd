@@ -50,7 +50,7 @@ export interface ScriptAnalysis {
  * The analysis exists to answer two questions — what does this block declare,
  * and which imports does it repeat — so that merging can be done by splicing
  * the original text. Regenerating code from the AST would be simpler but would
- * throw away TypeScript, which F11 requires (§I7).
+ * throw away TypeScript.
  *
  * Parsing is best effort: a block using syntax this parser does not know yet is
  * emitted verbatim rather than failing the build.

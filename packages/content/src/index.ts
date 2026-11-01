@@ -1,10 +1,10 @@
 /**
- * A content layer in about a hundred lines.
+ * A content layer in about two hundred lines.
  *
  * Everything here is built on `import.meta.glob`, which Vite resolves at build
  * time. There is no separate build step, no generated directory and no alias to
  * configure — the three things that make the heavyweight alternatives feel
- * magic (D8). If cross-collection references or an image pipeline are ever
+ * magic. If cross-collection references or an image pipeline are ever
  * needed, `content-collections` is a drop-in replacement for this file.
  */
 

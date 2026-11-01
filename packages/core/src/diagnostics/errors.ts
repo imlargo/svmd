@@ -2,7 +2,7 @@
  * Diagnostics.
  *
  * Every error carries a position in the *markdown*, never in the generated
- * Svelte, plus a hint that says what to do about it (§NF8). The shape also
+ * Svelte, plus a hint that says what to do about it. The shape also
  * matches what Rollup and Vite already know how to print, so the message a user
  * sees in the terminal needs no extra formatting.
  */
