@@ -316,13 +316,27 @@ describe('resolveId', () => {
 
   function resolve(source: string, options: Record<string, unknown> = {}): Promise<unknown> {
     (plugin.configResolved as (config: { root: string }) => void).call(plugin, { root });
-    return (plugin.resolveId as unknown as ResolveId).call(context, source, undefined, options);
+    const hook = plugin.resolveId as unknown as { handler: ResolveId };
+    return hook.handler.call(context, source, undefined, options);
   }
+
+  it('asks Rolldown to call it only for ids it can own', () => {
+    const filter = (plugin.resolveId as unknown as { filter: { id: RegExp[] } }).filter.id;
+    const matches = (id: string) => filter.some((pattern) => pattern.test(id));
+
+    expect(matches('./post.md')).toBe(true);
+    expect(matches('/src/post.MD?metadata')).toBe(true);
+    expect(matches('/abs/post.md.svmd.svelte')).toBe(true);
+    expect(matches('/abs/post.md.svmd-metadata.js')).toBe(true);
+    expect(matches('./app.ts')).toBe(false);
+    expect(matches('./Card.svelte')).toBe(false);
+    expect(matches('./notes.mdx')).toBe(false);
+  });
 
   /**
    * The scanner reads any id ending in `.svelte` straight off disk, and the
    * shadow id is not a file. Regression guard for the ENOENT that only ever
-   * showed up through a static `import Post from './x.md'` (§I10).
+   * showed up through a static `import Post from './x.md'`.
    */
   it('does not add the shadow suffix while Vite is scanning dependencies', async () => {
     const scanned = await resolve('src/content/post.md', { scan: true });

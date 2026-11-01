@@ -40,6 +40,15 @@ const SUFFIX = '.svmd.svelte';
 const METADATA_QUERY = 'metadata';
 const METADATA_SUFFIX = '.svmd-metadata.js';
 
+/** Ids this plugin owns once it has resolved them. */
+const OWN_ID = /\.svmd(?:\.svelte|-metadata\.js)(?:[?#]|$)/;
+
+/** Matches an id ending in one of the include extensions, query allowed. */
+function extensionPattern(extensions: Set<string>): RegExp {
+  const names = [...extensions].map((extension) => extension.slice(1)).join('|');
+  return new RegExp(`\\.(?:${names})(?:[?#]|$)`, 'i');
+}
+
 /** Queries whose meaning is "give me the file itself, do not compile it". */
 const PASSTHROUGH_QUERIES = new Set(['raw', 'url', 'inline', 'worker', 'sharedworker']);
 
@@ -122,12 +131,10 @@ export function svmd(options: SvmdOptions = {}): Plugin {
    * front instead of forcing a reload on first visit.
    */
   function scanPlugin(scanned: Set<string>): Rolldown.Plugin {
-    const id = new RegExp(`(?:${[...scanned].map((ext) => ext.replace('.', '\\.')).join('|')})$`);
-
     return {
       name: 'svmd:dep-scan',
       load: {
-        filter: { id },
+        filter: { id: extensionPattern(scanned) },
         async handler(path) {
           if (!filter(path)) return { code: '', moduleType: 'js' };
 
@@ -172,73 +179,86 @@ export function svmd(options: SvmdOptions = {}): Plugin {
       });
     },
 
-    async resolveId(source, importer, resolveOptions) {
-      // While Vite scans for dependencies (`scan` is set but not in the public
-      // type), the real `.md` path goes back: the scanner would read a
-      // `.svelte`-suffixed id straight off disk and fail with ENOENT. The scan
-      // plugin from `config` below reads the file's imports instead.
-      const scanning = (resolveOptions as { scan?: boolean }).scan === true;
+    // Filters keep Rolldown from calling into JavaScript for every module of
+    // the app; the handlers still check, for Vite versions that ignore them.
+    resolveId: {
+      ...(extensions ? { filter: { id: [extensionPattern(extensions), OWN_ID] } } : {}),
+      async handler(source, importer, resolveOptions) {
+        // While Vite scans for dependencies (`scan` is set but not in the public
+        // type), the real `.md` path goes back: the scanner would read a
+        // `.svelte`-suffixed id straight off disk and fail with ENOENT. The scan
+        // plugin from `config` below reads the file's imports instead.
+        const scanning = (resolveOptions as { scan?: boolean }).scan === true;
 
-      if (source.endsWith(SUFFIX) || source.endsWith(METADATA_SUFFIX)) {
-        return scanning ? null : source;
-      }
+        if (source.endsWith(SUFFIX) || source.endsWith(METADATA_SUFFIX)) {
+          return scanning ? null : source;
+        }
 
-      const { path, query } = splitId(source);
-      if (!hasKnownExtension(path, extensions) || isPassthrough(query)) return null;
+        const { path, query } = splitId(source);
+        if (!hasKnownExtension(path, extensions) || isPassthrough(query)) return null;
 
-      const resolved = await this.resolve(source, importer, {
-        ...resolveOptions,
-        skipSelf: true,
-      });
-      if (!resolved || resolved.external) return resolved;
+        const resolved = await this.resolve(source, importer, {
+          ...resolveOptions,
+          skipSelf: true,
+        });
+        if (!resolved || resolved.external) return resolved;
 
-      const target = splitId(resolved.id);
-      if (!filter(target.path) || scanning) return resolved;
+        const target = splitId(resolved.id);
+        if (!filter(target.path) || scanning) return resolved;
 
-      if (isMetadataQuery(target.query)) {
-        return { ...resolved, id: target.path + METADATA_SUFFIX };
-      }
+        if (isMetadataQuery(target.query)) {
+          return { ...resolved, id: target.path + METADATA_SUFFIX };
+        }
 
-      return { ...resolved, id: target.path + SUFFIX + target.query };
+        return { ...resolved, id: target.path + SUFFIX + target.query };
+      },
     },
 
-    async load(id) {
-      const { path } = splitId(id);
+    load: {
+      filter: { id: OWN_ID },
+      async handler(id) {
+        const { path } = splitId(id);
 
-      if (path.endsWith(METADATA_SUFFIX)) {
-        const filename = path.slice(0, -METADATA_SUFFIX.length);
+        if (path.endsWith(METADATA_SUFFIX)) {
+          const filename = path.slice(0, -METADATA_SUFFIX.length);
+          this.addWatchFile(filename);
+          try {
+            const result = await compiler.compileMetadata(
+              await readFile(filename, 'utf8'),
+              filename,
+            );
+            return { code: result.code, map: null };
+          } catch (error) {
+            throw toRollupError(error);
+          }
+        }
+
+        if (!path.endsWith(SUFFIX)) return null;
+
+        const filename = path.slice(0, -SUFFIX.length);
         this.addWatchFile(filename);
+
+        const source = await readFile(filename, 'utf8');
+
         try {
-          const result = await compiler.compileMetadata(await readFile(filename, 'utf8'), filename);
-          return { code: result.code, map: null };
+          const result = await compiler.compile(source, filename);
+
+          for (const warning of result.warnings) {
+            this.warn({
+              message: `[${warning.code}] ${warning.message}\n\n${warning.frame ?? ''}\n\n  ${warning.hint}`,
+              ...(warning.start
+                ? {
+                    loc: { file: filename, line: warning.start.line, column: warning.start.column },
+                  }
+                : {}),
+            });
+          }
+
+          return { code: result.code, map: result.map };
         } catch (error) {
           throw toRollupError(error);
         }
-      }
-
-      if (!path.endsWith(SUFFIX)) return null;
-
-      const filename = path.slice(0, -SUFFIX.length);
-      this.addWatchFile(filename);
-
-      const source = await readFile(filename, 'utf8');
-
-      try {
-        const result = await compiler.compile(source, filename);
-
-        for (const warning of result.warnings) {
-          this.warn({
-            message: `[${warning.code}] ${warning.message}\n\n${warning.frame ?? ''}\n\n  ${warning.hint}`,
-            ...(warning.start
-              ? { loc: { file: filename, line: warning.start.line, column: warning.start.column } }
-              : {}),
-          });
-        }
-
-        return { code: result.code, map: result.map };
-      } catch (error) {
-        throw toRollupError(error);
-      }
+      },
     },
 
     /**
