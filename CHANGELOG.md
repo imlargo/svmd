@@ -15,6 +15,8 @@ outside does not get a line here — the git history already has it.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-01
+
 ### Added
 
 - `post.md?metadata` imports a module holding only the frontmatter. `@svmd/content`'s `meta` glob
