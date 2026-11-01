@@ -76,7 +76,7 @@ const passElement: Handler = (state: State, node: Passed) => {
  *
  * `allowDangerousHtml` is on because the output is a Svelte component, not a
  * sanitised HTML document — without it every `<Callout>` would come out as
- * `&lt;Callout&gt;` (G3).
+ * `&lt;Callout&gt;`.
  */
 export function svelteToHast(tree: Root): HastRoot {
   return toHast(tree, {

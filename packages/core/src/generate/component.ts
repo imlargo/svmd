@@ -4,10 +4,12 @@ import { generateMarkup } from './markup.js';
 import type { MergedBlock, MergeResult } from './script/merge.js';
 import type { SourceBuilder } from '../internal/source-builder.js';
 import { appendMetadata } from './metadata.js';
+import type { Heading } from '../transform/headings.js';
 
 export interface ComponentParts {
   hast: HastRoot;
   metadata: Record<string, unknown>;
+  headings: Heading[];
   scripts: MergeResult;
 }
 
@@ -19,9 +21,9 @@ export interface ComponentParts {
  * generated file is something people read when a source map is not enough.
  */
 export function emitComponent(builder: SourceBuilder, parts: ComponentParts): void {
-  const { hast, metadata, scripts } = parts;
+  const { hast, metadata, headings, scripts } = parts;
 
-  emitModuleScript(builder, metadata, scripts);
+  emitModuleScript(builder, metadata, headings, scripts);
   emitInstanceScript(builder, scripts.instance);
 
   generateMarkup(hast, builder);
@@ -37,6 +39,7 @@ export function emitComponent(builder: SourceBuilder, parts: ComponentParts): vo
 function emitModuleScript(
   builder: SourceBuilder,
   metadata: Record<string, unknown>,
+  headings: Heading[],
   scripts: MergeResult,
 ): void {
   const block = scripts.module;
@@ -46,6 +49,10 @@ function emitModuleScript(
 
   builder.append('<script module' + attributes + '>\n');
   appendMetadata(builder, metadata, scripts.declared);
+  // An author's own `headings` wins, the same as a frontmatter binding would yield to it.
+  if (!scripts.declared.has('headings')) {
+    builder.append('export const headings = ' + JSON.stringify(headings) + ';\n');
+  }
   if (block) appendBlock(builder, block);
   builder.append('</script>\n');
 }

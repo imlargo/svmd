@@ -4,13 +4,20 @@ import type { PluggableList } from 'unified';
 import { VFile } from 'vfile';
 import { emitComponent } from './generate/component.js';
 import { SvmdError, type SvmdPoint, type SvmdWarning } from './diagnostics/errors.js';
-import { extractFrontmatter, type FrontmatterOptions } from './parse/frontmatter.js';
+import {
+  extractFrontmatter,
+  readFrontmatter,
+  type FrontmatterOptions,
+} from './parse/frontmatter.js';
+import { metadataExport } from './generate/metadata.js';
 import { hoistScriptsAndStyles } from './transform/hoist.js';
 import type { Highlighter } from './transform/highlight.js';
 import { createPipeline, getPipeline, type Pipeline } from './parse/pipeline.js';
 import { mergeScripts } from './generate/script/merge.js';
+import { analyzeScript } from './generate/script/analyze.js';
 import { SourceBuilder, type EncodedSourceMap } from './internal/source-builder.js';
 import { svelteToHast } from './transform/to-hast.js';
+import { collectHeadings, inlineFrontmatter, type Heading } from './transform/headings.js';
 import { collectWarnings } from './diagnostics/warnings.js';
 
 export interface CompileOptions {
@@ -18,7 +25,7 @@ export interface CompileOptions {
   filename?: string | undefined;
   remarkPlugins?: PluggableList | undefined;
   rehypePlugins?: PluggableList | undefined;
-  /** Syntax highlighting for fenced code blocks. Off by default (§I12). */
+  /** Syntax highlighting for fenced code blocks. Off by default. */
   highlight?: Highlighter | false | undefined;
   frontmatter?: FrontmatterOptions | undefined;
   /** GitHub Flavoured Markdown: tables, strikethrough, task lists. Default on. */
@@ -49,6 +56,8 @@ export interface CompileResult {
   map: EncodedSourceMap;
   /** The frontmatter, after optional schema validation. */
   metadata: Record<string, unknown>;
+  /** The document's headings, after the rehype plugins ran; also exported as `headings`. */
+  headings: Heading[];
   /** Non-fatal diagnostics, in document order. */
   warnings: SvmdWarning[];
   /** Data collected by remark/rehype plugins on the virtual file. */
@@ -60,7 +69,7 @@ export interface CompileResult {
  *
  * The result is Svelte, not JavaScript: `@sveltejs/vite-plugin-svelte` compiles
  * it afterwards, which is what gives TypeScript, HMR and the rest of the
- * toolchain for free (D2).
+ * toolchain for free.
  *
  * Compiling many files with the same settings — a build, a dev server — should
  * go through `createCompiler` instead, which builds the pipeline once.
@@ -73,8 +82,25 @@ export async function compile(
   return compileWith(getPipeline(rest), rest, source, filename);
 }
 
+export interface MetadataResult {
+  /** A JavaScript module whose only export is `metadata`. */
+  code: string;
+  /** The frontmatter, after optional schema validation. */
+  metadata: Record<string, unknown>;
+}
+
 export interface Compiler {
   compile(source: string, filename?: string): Promise<CompileResult>;
+  /**
+   * The `metadata` export alone, without compiling the body. Equal to
+   * `compile(...).metadata`, and cheap enough for an eager index of every file.
+   */
+  compileMetadata(source: string, filename?: string): Promise<MetadataResult>;
+  /**
+   * The module specifiers the file's `<script>` blocks import, read without
+   * running plugins or the highlighter. Throws the same structure errors as `compile`.
+   */
+  imports(source: string, filename?: string): string[];
 }
 
 /**
@@ -92,6 +118,19 @@ export function createCompiler(options: CompileOptions = {}): Compiler {
   return {
     compile(source, filename) {
       return compileWith(pipeline, rest, source, filename);
+    },
+    async compileMetadata(source, filename) {
+      const { metadata } = await readFrontmatter(source, filename, rest.frontmatter ?? {});
+      return { code: metadataExport(metadata), metadata };
+    },
+    imports(source, filename) {
+      const tree = parseMarkdown(source, pipeline, filename);
+      const { scripts } = hoistScriptsAndStyles(tree, source, filename);
+      return [
+        ...new Set(
+          scripts.flatMap((script) => analyzeScript(script.value).imports.map((i) => i.specifier)),
+        ),
+      ];
     },
   };
 }
@@ -119,10 +158,12 @@ async function compileWith(
   const scripts = mergeScripts(hoisted.scripts, hoisted.styles, { filename, source });
 
   const hast = svelteToHast(tree);
+  inlineFrontmatter(hast, metadata, scripts.declared);
   await pipeline.html.run(hast, file);
 
+  const headings = collectHeadings(hast);
   const builder = new SourceBuilder();
-  emitComponent(builder, { hast, metadata, scripts });
+  emitComponent(builder, { hast, metadata, headings, scripts });
 
   return {
     code: builder.toString(),
@@ -132,6 +173,7 @@ async function compileWith(
       ...(filename ? { file: filename + '.svelte' } : {}),
     }),
     metadata,
+    headings,
     warnings,
     data: file.data,
   };

@@ -1,6 +1,6 @@
 /**
- * NF8: every error names the file, the line, the column and what to do.
- * These assert the catalogue in ARCHITECTURE.md §5.
+ * Every error names the file, the line, the column and what to do.
+ * These assert the catalogue in ARCHITECTURE.md, "Errors".
  */
 import { compile, SvmdError } from '@svmd/core';
 import { describe, expect, it } from 'vitest';

@@ -1,5 +1,6 @@
 <script module>
 export const metadata = {};
+export const headings = [];
 </script>
 <script>
   import { fade } from 'svelte/transition';

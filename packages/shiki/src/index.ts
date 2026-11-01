@@ -5,7 +5,12 @@ export interface ShikiOptions {
   theme?: string | undefined;
   /** Multiple themes for CSS-variable based light/dark switching. */
   themes?: Record<string, string> | undefined;
-  /** Languages to preload. Defaults to the ones actually used. */
+  /**
+   * With `themes`, which one is inlined as plain `color`. `false` inlines none, so
+   * every token carries only CSS variables and your stylesheet picks the theme.
+   */
+  defaultColor?: string | false | undefined;
+  /** Languages to preload. Defaults to a common set; any other loads on first use. */
   langs?: string[] | undefined;
   /** Shiki transformers, passed through untouched. */
   transformers?: unknown[] | undefined;
@@ -26,7 +31,7 @@ interface ShikiModule {
  *
  * Opt-in rather than on by default: Shiki carries every TextMate grammar it
  * supports, and a project that already uses `rehype-pretty-code`, Prism or its
- * own CSS should not pay for it (§I12). Install `shiki` alongside `svmd` to use
+ * own CSS should not pay for it. Install `shiki` alongside `svmd` to use
  * this.
  *
  * ```js
@@ -58,12 +63,17 @@ export async function shikiHighlighter(options: ShikiOptions = {}): Promise<High
   const single = options.themes === undefined;
   const fallback = options.fallbackLang ?? 'text';
 
-  return async ({ value, lang }) => {
+  return async ({ value, lang, meta }) => {
     const language = await resolveLanguage(highlighter, lang, fallback);
 
     return highlighter.codeToHtml(value, {
       lang: language,
       ...(single ? { theme: Object.values(themes)[0] } : { themes }),
+      ...(!single && options.defaultColor !== undefined
+        ? { defaultColor: options.defaultColor }
+        : {}),
+      // `__raw` is where Shiki's transformers (`transformerMetaHighlight`, …) read the fence's info.
+      ...(meta ? { meta: { __raw: meta } } : {}),
       ...(options.transformers ? { transformers: options.transformers } : {}),
     });
   };

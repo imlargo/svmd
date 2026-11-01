@@ -1,5 +1,6 @@
 <script module>
 export const metadata = {};
+export const headings = [];
 </script>
 <h1>Heading with {value} and <Badge>inline</Badge></h1>
 <p>Text with <Badge tone="new">a badge</Badge> and {expr} and <strong>bold <Badge>b</Badge></strong>.</p>

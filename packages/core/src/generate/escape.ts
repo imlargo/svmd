@@ -1,5 +1,5 @@
 /**
- * Escaping (§8.3, D5).
+ * Escaping.
  *
  * Braces are the whole point. By the time a value reaches these functions the
  * grammar has already lifted every real Svelte construct out into its own node,
@@ -48,19 +48,4 @@ export function escapeAttribute(value: string, quote: '"' | "'"): string {
  */
 export function escapeAttributeLiteral(value: string, quote: '"' | "'"): string {
   return value.replaceAll('{', '&#123;').replaceAll(quote, quote === '"' ? '&quot;' : '&#39;');
-}
-
-const BRACE_PATTERN = /[{}]/g;
-
-/**
- * Escape only braces, leaving markup intact.
- *
- * Used for `raw` HTML that a rehype plugin or the syntax highlighter produced:
- * the tags in it are meant to reach the browser, but a `{` inside highlighted
- * source code (`function f() {`) would otherwise be read by Svelte as the start
- * of an expression. A plugin that deliberately emits Svelte syntax opts out by
- * using a `svelteRaw` node instead.
- */
-export function escapeBraces(value: string): string {
-  return value.replace(BRACE_PATTERN, (character) => TEXT_REPLACEMENTS[character] ?? character);
 }

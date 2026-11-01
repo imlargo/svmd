@@ -55,7 +55,7 @@ title: My first post
 ---
 
 <script lang="ts">
-  import Counter from '$lib/Counter.svelte';
+  import Counter from '#lib/Counter.svelte';
   let count = $state(0);
 </script>
 
@@ -83,15 +83,15 @@ No `svelte.config.js` to touch. No separate build step. No layout system of its 
 
 ### Markdown as a SvelteKit route
 
-A `.md` can also _be_ the route, with no `+page.svelte` importing it. That needs two things:
-`.md` in SvelteKit's own `extensions`, so its router picks the file up, and the file inside
-svmd's globs, so there is something to pick up:
+A `.md` can also _be_ the route, with no `+page.svelte` importing it. Add `.md` to SvelteKit's
+own `extensions`, so its router picks the file up; svmd reads that list and compiles the route
+files for it, so they need no glob of their own:
 
 ```js
 // vite.config.js
 export default {
   plugins: [
-    svmd({ include: ['src/routes/**/+page.md'] }),
+    svmd({ include: ['src/content/**/*.md'] }),
     sveltekit({ extensions: ['.svelte', '.md'] }),
   ],
 };
@@ -109,6 +109,12 @@ Frontmatter binds as a local, the same as in any other file svmd compiles.
 
 `src/routes/notes/+page.md` then serves `/notes`, prerendering included. Everything SvelteKit
 owns stays SvelteKit's: a `+layout.svelte` above it wraps it, `+page.ts` beside it loads for it.
+
+- `+layout.md` and `+error.md` work the same way. A layout renders its page with
+  `let { children } = $props()` in its `<script>` and `{@render children()}` in the markdown.
+- Page options (`prerender`, `ssr`, `csr`, `trailingSlash`) go in a `+page.ts` beside the
+  markdown. SvelteKit warns about them in a component's `<script module>`.
+- With `include` globs that name another extension (`.svx`), add that one to `extensions`.
 
 ## Behavior
 
@@ -241,6 +247,10 @@ svmd({
 });
 ```
 
+For light and dark, pass `themes: { light, dark }`; `defaultColor: false` leaves every token with CSS
+variables only, so a `.dark` class can switch them with no inline color to override. The fence's
+info string after the language reaches Shiki's transformers as `meta`.
+
 Or write your own. It is one function:
 
 ```js
@@ -270,6 +280,20 @@ svmd({
 
 The schema's output is what ends up in `metadata`, so coercions and defaults apply.
 
+### Headings
+
+Every compiled file also exports its headings, for a table of contents or a search index:
+
+```js
+import Post, { headings } from './post.md';
+// [{ depth: 1, text: 'My first post', id: 'my-first-post' }, …]
+```
+
+`id` is whatever a rehype plugin such as `rehype-slug` gave the heading; svmd adds none itself.
+A `{key}` naming a frontmatter string, number or boolean is written out as its text before the
+rehype plugins run, so `# {title}` gets a real id. A heading whose text depends on a runtime value
+(`## {row.title}` inside `{#each}`) is left out.
+
 ## Content collections
 
 `@svmd/content` is a minimal layer over `import.meta.glob`. No build step, no generated directory,
@@ -283,9 +307,11 @@ import { z } from 'zod';
 
 export const { getCollection, getEntry } = createContent({
   blog: {
-    // Cheap index: frontmatter only, eager.
+    // Cheap index: frontmatter only, eager. `?metadata` imports a module with
+    // nothing but the frontmatter, so no component comes along with it.
     meta: import.meta.glob('/src/content/blog/**/*.md', {
       eager: true,
+      query: '?metadata',
       import: 'metadata',
     }),
     // Body: lazy, loaded only on the post's own route.
@@ -301,7 +327,7 @@ export const { getCollection, getEntry } = createContent({
 
 ```ts
 // src/routes/blog/+page.ts
-import { getCollection } from '$lib/content';
+import { getCollection } from '#lib/content.js';
 
 export const load = () => ({
   posts: getCollection('blog', (post) => !post.data.draft),
@@ -310,7 +336,7 @@ export const load = () => ({
 
 ```ts
 // src/routes/blog/[slug]/+page.ts
-import { getEntry } from '$lib/content';
+import { getEntry } from '#lib/content.js';
 import { error } from '@sveltejs/kit';
 
 export const load = async ({ params }) => {
@@ -321,8 +347,10 @@ export const load = async ({ params }) => {
 };
 ```
 
-Keeping the bodies lazy matters: setting `eager: true` on both globs would put all 300 posts in
-the client bundle.
+Keeping the bodies lazy matters, and `?metadata` is what keeps them lazy: an eager
+`import: 'metadata'` without it imports each whole module, components included, so every body
+lands in the index's chunk and the lazy glob cannot split it out (Rollup and Rolldown report
+`INEFFECTIVE_DYNAMIC_IMPORT`).
 
 ## Errors
 
@@ -360,6 +388,10 @@ And two warnings, which do not fail the build but are reported:
 | `W001` | indented content inside a component, which CommonMark turned into a code block            |
 | `W002` | a `<script>` or `<style>` written inside a block: it is hoisted, so it is not conditional |
 
+Svelte's own warnings about markup you wrote in markdown (a missing `alt`, an unused selector) are
+reported at the line in the `.md` too, through `@sveltejs/vite-plugin-svelte` 7 and any `onwarn`
+you passed it.
+
 ## Scope
 
 svmd leaves out layouts, routing, a documentation framework, image optimisation, and support for
@@ -384,9 +416,9 @@ a dependency.
 
 One person maintains this. What bounds the risk if that changes:
 
-- **No hidden runtime.** The compiler is ~1,900 lines across 18 files in
+- **No hidden runtime.** The compiler is ~2,150 lines across 19 files in
   [`packages/core`](./packages/core); the plugin, the content layer and the Shiki adapter add
-  under 500 more. Reading it is an afternoon, not an archaeology project.
+  under 800 more. Reading it is an afternoon, not an archaeology project.
 - **The forks are isolated and documented.** Three packages (the grammar, its expression
   factory, and the MDAST builder) are forks of Titus Wormer's MDX packages (MIT), kept
   deliberately diffable against upstream. [`FORK.md`](./packages/micromark-extension-svelte/FORK.md)
@@ -394,7 +426,7 @@ One person maintains this. What bounds the risk if that changes:
   fix later is a diff review too.
 - **MIT, everywhere.** Every package, forks included, carries its own `LICENSE` and, where it
   applies, the upstream notice the fork requires.
-- **375 tests**, across grammar tokens, tree construction, fixture-vs-`svelte.compile` snapshots,
+- **404 tests**, across grammar tokens, tree construction, fixture-vs-`svelte.compile` snapshots,
   documented mdsvex regressions, source maps, and a real SvelteKit build. See [Testing](#testing).
 
 ## Runtimes
@@ -405,6 +437,11 @@ One person maintains this. What bounds the risk if that changes:
 | Svelte                         | 5.x only                                    |
 | Vite                           | 6, 7 or 8                                   |
 | `@sveltejs/vite-plugin-svelte` | 5, 6 or 7 (matched to the Vite major above) |
+| SvelteKit                      | 3, which itself needs Node 22.17 and Vite 8 |
+
+Features tied to Vite 8 and vite-plugin-svelte 7: the dependency scan that follows markdown
+imports, and Svelte warnings reported at their line in the `.md`. On older majors both degrade to
+the previous behavior rather than failing.
 
 CI proves the peer range by building against it: every publishable package is packed into a real
 tarball and installed into a clean project against each Vite/plugin pair, not tested only inside

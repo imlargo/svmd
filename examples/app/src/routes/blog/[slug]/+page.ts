@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { getCollection, getEntry } from '$lib/content';
+import { getCollection, getEntry } from '#lib/content.js';
 
 export const prerender = true;
 

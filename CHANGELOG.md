@@ -15,6 +15,41 @@ outside does not get a line here — the git history already has it.
 
 ## [Unreleased]
 
+### Added
+
+- `post.md?metadata` imports a module holding only the frontmatter. `@svmd/content`'s `meta` glob
+  should use it (`query: '?metadata'`): without it the eager index imported every body, and the
+  lazy `body` glob could not split them into their own chunks.
+- Every compiled file exports `headings`: `{ depth, text, id? }` for each heading with static
+  text, after the rehype plugins ran.
+- Route files (`+page.md`, `+layout.md`, `+error.md`) are compiled whenever their extension is in
+  SvelteKit's `extensions`; they no longer need a glob in `include`.
+- `@svmd/shiki`: `defaultColor`, and the fence's info string reaches transformers as `meta`.
+- `@svmd/core`: `compiler.compileMetadata()` and `compiler.imports()`.
+
+### Changed
+
+- Highlighter and plugin HTML reaches Svelte as `{@html "…"}`. Svelte no longer reports
+  `a11y_no_noninteractive_tabindex` on Shiki's scrollable `<pre tabindex="0">`, and no longer
+  compiles each highlighted token as a template node.
+- A `{key}` naming a frontmatter string, number or boolean is written out as text before the
+  rehype plugins run, so `# {title}` gets an id from `rehype-slug`.
+- Svelte's warnings about markup in a `.md` name the `.md`, its line and a frame from it
+  (vite-plugin-svelte 7).
+- On Vite 8, packages imported only from markdown are found by the dependency scan at startup,
+  instead of failing the first request with `504 Outdated Optimize Dep` and reloading the page.
+- `resolveId` and `load` declare hook filters, so Rolldown calls them only for markdown ids.
+
+### Fixed
+
+- A `$`-prefixed frontmatter key (`$schema`) failed the Svelte compile with
+  `dollar_prefix_invalid`; it stays in `metadata` and is no longer bound as a local.
+- Editing a `.md` in `vite dev` served the old output: the compiled module was never
+  invalidated, so the client skipped the update and SSR re-rendered stale content. A `+page.md`
+  now hot-updates; a `?metadata` module only reloads the page when the frontmatter changed.
+- A route `.md` re-imported by URL in dev failed with `Failed to load url …/+page.md.svelte`, and
+  an HMR re-import of `….md.svmd.svelte?t=…` failed with `ENOENT`.
+
 ## [0.2.0] - 2026-09-19
 
 ### Added

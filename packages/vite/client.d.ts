@@ -22,4 +22,11 @@ declare module '*.md' {
   const component: Component<Record<string, never>>;
   export default component;
   export const metadata: unknown;
+  /** Headings with static text, in document order; `id` when a rehype plugin set one. */
+  export const headings: { depth: number; text: string; id?: string }[];
+}
+
+/** The frontmatter alone, without the component: `import { metadata } from './post.md?metadata'`. */
+declare module '*.md?metadata' {
+  export const metadata: unknown;
 }

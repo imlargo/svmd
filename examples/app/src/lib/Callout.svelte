@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Card, CardContent } from '$lib/components/ui/card/index.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Card, CardContent } from '#lib/components/ui/card/index.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
 	import type { Snippet } from 'svelte';
 
 	let { type = 'note', children }: { type?: 'note' | 'warning'; children: Snippet } = $props();

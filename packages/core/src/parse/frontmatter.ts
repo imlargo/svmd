@@ -1,4 +1,7 @@
 import type { Root, Yaml } from 'mdast';
+import { fromMarkdown } from 'mdast-util-from-markdown';
+import { frontmatterFromMarkdown } from 'mdast-util-frontmatter';
+import { frontmatter } from 'micromark-extension-frontmatter';
 import { parse as parseYaml, YAMLParseError } from 'yaml';
 import { SvmdError, type SvmdPoint } from '../diagnostics/errors.js';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
@@ -92,6 +95,23 @@ export async function extractFrontmatter(
   }
 
   return { metadata };
+}
+
+/**
+ * Read the frontmatter without the rest of the grammar: the same micromark rule
+ * as a full compile, so both agree on where the block ends, at a fraction of
+ * the cost.
+ */
+export function readFrontmatter(
+  source: string,
+  filename: string | undefined,
+  options: FrontmatterOptions,
+): Promise<FrontmatterResult> {
+  const tree = fromMarkdown(source, {
+    extensions: [frontmatter(['yaml'])],
+    mdastExtensions: [frontmatterFromMarkdown(['yaml'])],
+  });
+  return extractFrontmatter(tree, source, filename, options);
 }
 
 function formatPath(path: StandardSchemaV1.Issue['path']): string {

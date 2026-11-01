@@ -1,5 +1,6 @@
 <script module>
 export const metadata = {};
+export const headings = [{"depth":1,"text":"A heading"}];
 </script>
 <svelte:head>
 <title>Page</title>

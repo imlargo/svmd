@@ -96,16 +96,16 @@ and silently resolves re-exports to `any`.
       ├─ 4. transform          block and tag tree construction, nesting validation (E001–E005)
       │                        <script>/<style> extraction
       │
-      ├─ 5. remarkPlugins      the user's — fenced code arrives as a real `code` node
+      ├─ 5. highlight          optional (off by default; see "Highlighting" below)
       │
-      ├─ 6. mdast → hast       remark-rehype, passing svelte* nodes through
+      ├─ 6. remarkPlugins      the user's — unhighlighted fenced code arrives as a real `code` node
       │
-      ├─ 7. rehypePlugins      the user's
+      ├─ 7. mdast → hast       remark-rehype, passing svelte* nodes through
       │
-      ├─ 8. highlight          optional (off by default; see "Highlighting" below)
+      ├─ 8. rehypePlugins      the user's
       │
       ├─ 9. generate           hast → Svelte source, via SourceBuilder
-      │                        brace escaping in text/raw content
+      │                        brace escaping in text; raw HTML as `{@html}`
       │
       └─ 10. scripts           AST-guided merge, frontmatter bindings, metadata
       │
@@ -244,6 +244,18 @@ Since the module id isn't a real file on disk, the file watcher can't find it di
 `hotUpdate` hook maps `file → file + suffix` to correct that. Source maps still point at the real
 `.md`, so errors and devtools show the original file.
 
+`import { metadata } from './post.md?metadata'` resolves to a second id, `/abs/post.md.svmd-metadata.js`:
+plain JavaScript holding only `export const metadata`, built from the frontmatter alone. An eager
+index of every file imports these, so no component rides along with it and each body keeps its own
+lazy chunk. Its value is the component's `metadata`, schema included.
+
+Vite's dependency scanner would read a `.svelte`-suffixed id straight off disk, so while scanning
+`resolveId` returns the real `.md` path. On Vite 8, `config` adds the include extensions to
+`optimizeDeps.extensions` with a scan plugin that loads each file as the bare imports of its
+`<script>` blocks (`compiler.imports`), so a package only markdown imports is optimized at startup
+instead of forcing a reload on first visit. On Vite 6 and 7 such a package is still found on
+first request.
+
 ### Frontmatter validation
 
 `frontmatter.schema` accepts anything implementing [Standard Schema](https://standardschema.dev)
@@ -295,14 +307,15 @@ An attribute's `name` is stored verbatim, directive and modifiers included
 | ------------------------------------------------- | ----------------- | ------------------- |
 | `text`                                            | HTML-escaped      | `&#123;` / `&#125;` |
 | `element` (text properties)                       | attribute-escaped | `&#123;` / `&#125;` |
-| `raw` (from rehype or the highlighter)            | verbatim          | `&#123;` / `&#125;` |
+| `raw` (from rehype or the highlighter)            | `{@html "…"}`     | inside the string   |
 | `svelteRaw` (explicit opt-in)                     | verbatim          | verbatim            |
 | `svelte*Expression`, `svelte*Tag`, `svelteBranch` | verbatim          | verbatim            |
 | `svelteScript`, `svelteStyle`                     | verbatim          | verbatim            |
 
-`raw` nodes get their braces escaped because that's what Shiki produces: the highlighted HTML of
-`function f() {` contains a real, literal brace that Svelte would otherwise try to read as an
-expression. `&#123;` is valid inside HTML text or an attribute, and Svelte decodes it correctly.
+`raw` nodes are HTML the author did not write, so Svelte gets them as an opaque string: a literal
+brace in highlighted `function f() {` stays text, Svelte's a11y checks do not run on markup like
+Shiki's scrollable `<pre tabindex="0">`, and a long code block costs one string instead of a
+template node per token.
 
 ## Errors
 

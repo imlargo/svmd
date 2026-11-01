@@ -17,7 +17,7 @@ import type { SvmdPoint } from '../diagnostics/errors.js';
 import type { SourceBuilder } from '../internal/source-builder.js';
 import { isComponentName } from '../internal/names.js';
 import { stringifyAttribute } from './attributes.js';
-import { escapeAttribute, escapeBraces, escapeText } from './escape.js';
+import { escapeAttribute, escapeText } from './escape.js';
 
 /** Elements that must not be given a closing tag. */
 const VOID_ELEMENTS = new Set([
@@ -99,9 +99,13 @@ function one(node: AnyNode, builder: SourceBuilder, schema: Schema): void {
       return;
 
     case 'raw':
-      // Produced by rehype plugins and the highlighter: keep the markup,
-      // neutralise the braces.
-      builder.append(escapeBraces((node as { value: string }).value), startOf(node));
+      // HTML from the highlighter or a plugin is opaque to Svelte: no a11y lint on
+      // markup the author did not write (Shiki's scrollable `<pre tabindex="0">`),
+      // no template nodes per highlighted token, and braces need no escaping.
+      builder.append(
+        '{@html ' + JSON.stringify((node as { value: string }).value) + '}',
+        startOf(node),
+      );
       return;
 
     case 'element':

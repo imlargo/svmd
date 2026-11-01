@@ -1,5 +1,5 @@
 /**
- * Regression matrix built from the mdsvex issues listed in SPEC.md appendix C.
+ * Regression matrix built from mdsvex's own issue tracker.
  *
  * Each test names the issue it stands for. They are the reason the project
  * exists, so they are asserted directly rather than snapshotted.
@@ -40,9 +40,10 @@ describe('mdsvex #289 — the info string survives to the highlighter', () => {
     });
 
     expect(seen).toEqual([{ lang: 'ts', meta: 'foo bar', value: 'let a = 1;' }]);
-    // Highlighter output is raw HTML, so its braces are neutralised but its
-    // tags are kept.
-    expect(result.code).toContain('<pre data-lang="ts" data-meta="foo bar">ok &#123;x&#125;</pre>');
+    // Highlighter output is raw HTML, handed to Svelte as an opaque string.
+    expect(result.code).toContain(
+      '{@html "<pre data-lang=\\"ts\\" data-meta=\\"foo bar\\">ok {x}</pre>"}',
+    );
   });
 });
 
@@ -164,13 +165,13 @@ describe('L6 — markdown inside components and HTML', () => {
   });
 });
 
-describe('G1 / G2 — gotchas the grammar removes', () => {
-  it('accepts an object literal with spaces in an attribute (G1)', async () => {
+describe('gotchas the grammar removes', () => {
+  it('accepts an object literal with spaces in an attribute', async () => {
     const result = await compile('<Chart data={{ a: 1 }} />\n');
     expect(result.code).toContain('<Chart data={{ a: 1 }} />');
   });
 
-  it('accepts a dotted component name (G2)', async () => {
+  it('accepts a dotted component name', async () => {
     const result = await compile('<Foo.Bar />\n');
     expect(result.code).toContain('<Foo.Bar />');
   });
@@ -193,11 +194,17 @@ describe('escaping stays faithful to the source', () => {
     expect(result.code).toContain('<!-- {#if a} -->');
   });
 
-  it('neutralises braces in highlighter output but keeps its markup', async () => {
+  it('hands highlighter output to Svelte as an opaque string', async () => {
     const result = await compile('```js\nif (a) { b() }\n```\n', {
-      highlight: ({ value }) => `<pre class="shiki"><code>${value}</code></pre>`,
+      highlight: ({ value }) => `<pre class="shiki" tabindex="0"><code>${value}</code></pre>`,
     });
-    expect(result.code).toContain('<pre class="shiki"><code>if (a) &#123; b() &#125;</code></pre>');
+    expect(result.code).toContain(
+      '{@html "<pre class=\\"shiki\\" tabindex=\\"0\\"><code>if (a) { b() }</code></pre>"}',
+    );
+
+    // Shiki's scrollable `<pre tabindex="0">` is correct markup; Svelte must not lint it.
+    const { warnings } = compileSvelte(result.code, { filename: 'x.svelte', generate: 'client' });
+    expect(warnings).toEqual([]);
   });
 });
 

@@ -1,5 +1,6 @@
 <script module>
 export const metadata = {};
+export const headings = [];
 </script>
 <Callout type="warning">
 <p>This <strong>is</strong> parsed as markdown, with <a href="/x">links</a> and:</p>

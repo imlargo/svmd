@@ -4,9 +4,9 @@ import { z } from 'zod';
 /**
  * The whole content layer: two globs and a schema.
  *
- * `meta` is eager but imports only `metadata`, so listing pages pay for the
- * frontmatter and nothing else. `body` is lazy, so a post's markup — and every
- * component it imports — only enters the bundle for the route that renders it.
+ * `meta` is eager but imports `?metadata`, a module holding only the frontmatter,
+ * so listing pages pay for nothing else. `body` is lazy, so a post's markup, and
+ * every component it imports, only enters the bundle for the route that renders it.
  */
 export const { getCollection, getEntry } = createContent({
 	blog: {
@@ -15,6 +15,7 @@ export const { getCollection, getEntry } = createContent({
 		// it does not know how to parse.
 		meta: import.meta.glob(['/src/content/blog/**/*.md', '!**/_*.md'], {
 			eager: true,
+			query: '?metadata',
 			import: 'metadata'
 		}),
 		body: import.meta.glob(['/src/content/blog/**/*.md', '!**/_*.md']),

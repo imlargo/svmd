@@ -22,7 +22,7 @@ describe('fixtures', () => {
       });
 
       // The whole point of emitting Svelte instead of JavaScript is that the
-      // official compiler is the arbiter of correctness (D2). A fixture that
+      // official compiler is the arbiter of correctness. A fixture that
       // snapshots cleanly but does not compile is not a passing fixture.
       it('is accepted by the Svelte compiler without warnings', async () => {
         const result = await compile(source, { filename: name });

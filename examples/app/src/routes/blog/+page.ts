@@ -1,4 +1,4 @@
-import { getCollection } from '$lib/content';
+import { getCollection } from '#lib/content.js';
 
 export const prerender = true;
 

@@ -1,4 +1,4 @@
-import { encode, type SourceMapSegment } from '@jridgewell/sourcemap-codec';
+import { decode, encode, type SourceMapSegment } from '@jridgewell/sourcemap-codec';
 import type { SvmdPoint } from '../diagnostics/errors.js';
 
 export interface EncodedSourceMap {
@@ -24,7 +24,7 @@ export interface SourceMapOptions {
  *
  * `magic-string` is the right tool for *editing* an existing string; the
  * markup generator *builds* a new one from a tree, so it needs an append-only
- * builder instead (§I9). Mappings are only ever appended in increasing
+ * builder instead. Mappings are only ever appended in increasing
  * generated position, which is exactly the order the source map format wants.
  */
 export class SourceBuilder {
@@ -82,4 +82,32 @@ export class SourceBuilder {
     if (options.sourceContent !== undefined) map.sourcesContent = [options.sourceContent];
     return map;
   }
+}
+
+/**
+ * Where a position in the generated component came from in the markdown.
+ *
+ * @param line 1-based line in the generated code.
+ * @param column 0-based column in the generated code, as Svelte reports it.
+ * @returns The nearest mapped point at or before it, or `undefined` when nothing
+ *   before it is mapped.
+ */
+export function originalPosition(
+  map: EncodedSourceMap,
+  line: number,
+  column: number,
+): SvmdPoint | undefined {
+  const lines = decode(map.mappings);
+
+  for (let index = Math.min(line, lines.length) - 1; index >= 0; index--) {
+    const segments = lines[index] ?? [];
+    for (let at = segments.length - 1; at >= 0; at--) {
+      const segment = segments[at];
+      if (!segment || segment.length < 4) continue;
+      if (index === line - 1 && segment[0] > column) continue;
+      return { line: (segment[2] ?? 0) + 1, column: (segment[3] ?? 0) + 1 };
+    }
+  }
+
+  return undefined;
 }
