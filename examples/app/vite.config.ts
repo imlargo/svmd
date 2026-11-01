@@ -14,8 +14,10 @@ export default defineConfig({
 		// not markdown.
 		svmd({
 			// The blog collection under src/content/, and one-off pages that import
-			// a sibling `content.md` directly (see src/routes/about/).
-			include: ['src/content/blog/**/*.md', 'src/routes/**/content.md', 'src/routes/**/+page.md'],
+			// a sibling `content.md` directly (see src/routes/about/). Route files such
+			// as src/routes/notes/+page.md need no glob: `.md` in SvelteKit's
+			// `extensions` below is enough.
+			include: ['src/content/blog/**/*.md', 'src/routes/**/content.md'],
 			// Mirrors `content.ts`'s own glob: a file this excludes is not a
 			// component, so compiling it here would produce a route `getCollection`
 			// never lists — the exclusion has to live in both places.

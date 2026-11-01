@@ -367,17 +367,35 @@ describe('resolveId', () => {
     resolve: (source: string) => Promise.resolve({ id: join(root, source), external: false }),
   };
 
-  function resolve(source: string, options: Record<string, unknown> = {}): Promise<unknown> {
-    (plugin.configResolved as unknown as (config: { root: string; plugins: [] }) => void).call(
-      plugin,
-      {
-        root,
-        plugins: [],
-      },
-    );
+  function resolve(
+    source: string,
+    options: Record<string, unknown> = {},
+    plugins: unknown[] = [],
+  ): Promise<unknown> {
+    (
+      plugin.configResolved as unknown as (config: { root: string; plugins: unknown[] }) => void
+    ).call(plugin, { root, plugins });
     const hook = plugin.resolveId as unknown as { handler: ResolveId };
     return hook.handler.call(context, source, undefined, options);
   }
+
+  it("compiles the route files of an extension in SvelteKit's `extensions`", async () => {
+    const kit = {
+      name: 'vite-plugin-sveltekit-setup',
+      api: { options: { extensions: ['.svelte', '.md'], files: { src: 'src', routes: null } } },
+    };
+
+    const route = (await resolve('src/routes/notes/+page.md', {}, [kit])) as { id: string };
+    expect(route.id).toBe(join(root, 'src/routes/notes/+page.md.svmd.svelte'));
+
+    // Only route files: any other markdown under src/routes stays outside the globs.
+    const other = (await resolve('src/routes/notes/readme.md', {}, [kit])) as { id: string };
+    expect(other.id).toBe(join(root, 'src/routes/notes/readme.md'));
+
+    // Without `.md` in SvelteKit's extensions, nothing under src/routes is compiled.
+    const outside = (await resolve('src/routes/notes/+page.md')) as { id: string };
+    expect(outside.id).toBe(join(root, 'src/routes/notes/+page.md'));
+  });
 
   it('asks Rolldown to call it only for ids it can own', () => {
     const filter = (plugin.resolveId as unknown as { filter: { id: RegExp[] } }).filter.id;

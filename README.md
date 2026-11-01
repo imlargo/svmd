@@ -55,7 +55,7 @@ title: My first post
 ---
 
 <script lang="ts">
-  import Counter from '$lib/Counter.svelte';
+  import Counter from '#lib/Counter.svelte';
   let count = $state(0);
 </script>
 
@@ -83,15 +83,15 @@ No `svelte.config.js` to touch. No separate build step. No layout system of its 
 
 ### Markdown as a SvelteKit route
 
-A `.md` can also _be_ the route, with no `+page.svelte` importing it. That needs two things:
-`.md` in SvelteKit's own `extensions`, so its router picks the file up, and the file inside
-svmd's globs, so there is something to pick up:
+A `.md` can also _be_ the route, with no `+page.svelte` importing it. Add `.md` to SvelteKit's
+own `extensions`, so its router picks the file up; svmd reads that list and compiles the route
+files for it, so they need no glob of their own:
 
 ```js
 // vite.config.js
 export default {
   plugins: [
-    svmd({ include: ['src/routes/**/+page.md'] }),
+    svmd({ include: ['src/content/**/*.md'] }),
     sveltekit({ extensions: ['.svelte', '.md'] }),
   ],
 };
@@ -109,6 +109,12 @@ Frontmatter binds as a local, the same as in any other file svmd compiles.
 
 `src/routes/notes/+page.md` then serves `/notes`, prerendering included. Everything SvelteKit
 owns stays SvelteKit's: a `+layout.svelte` above it wraps it, `+page.ts` beside it loads for it.
+
+- `+layout.md` and `+error.md` work the same way. A layout renders its page with
+  `let { children } = $props()` in its `<script>` and `{@render children()}` in the markdown.
+- Page options (`prerender`, `ssr`, `csr`, `trailingSlash`) go in a `+page.ts` beside the
+  markdown. SvelteKit warns about them in a component's `<script module>`.
+- With `include` globs that name another extension (`.svx`), add that one to `extensions`.
 
 ## Behavior
 
@@ -321,7 +327,7 @@ export const { getCollection, getEntry } = createContent({
 
 ```ts
 // src/routes/blog/+page.ts
-import { getCollection } from '$lib/content';
+import { getCollection } from '#lib/content.js';
 
 export const load = () => ({
   posts: getCollection('blog', (post) => !post.data.draft),
@@ -330,7 +336,7 @@ export const load = () => ({
 
 ```ts
 // src/routes/blog/[slug]/+page.ts
-import { getEntry } from '$lib/content';
+import { getEntry } from '#lib/content.js';
 import { error } from '@sveltejs/kit';
 
 export const load = async ({ params }) => {
@@ -431,6 +437,11 @@ One person maintains this. What bounds the risk if that changes:
 | Svelte                         | 5.x only                                    |
 | Vite                           | 6, 7 or 8                                   |
 | `@sveltejs/vite-plugin-svelte` | 5, 6 or 7 (matched to the Vite major above) |
+| SvelteKit                      | 3, which itself needs Node 22.17 and Vite 8 |
+
+Features tied to Vite 8 and vite-plugin-svelte 7: the dependency scan that follows markdown
+imports, and Svelte warnings reported at their line in the `.md`. On older majors both degrade to
+the previous behavior rather than failing.
 
 CI proves the peer range by building against it: every publishable package is packed into a real
 tarball and installed into a clean project against each Vite/plugin pair, not tested only inside

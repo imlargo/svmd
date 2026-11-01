@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { createCompiler, SvmdError, type CompileOptions, type EncodedSourceMap } from '@svmd/core';
 import { createFilter, type Plugin, type ResolvedConfig, type Rolldown } from 'vite';
+import { kitRouteGlobs } from './kit.js';
 import { remapSvelteWarnings } from './warnings.js';
 
 export type { CompileOptions, SvmdError };
@@ -131,7 +132,8 @@ export function svmd(options: SvmdOptions = {}): Plugin {
   let filter: (id: string) => boolean = () => false;
   /** The last source map of each compiled file, for remapping Svelte's warnings. */
   const maps = new Map<string, EncodedSourceMap>();
-  const patterns = Array.isArray(include) ? include : [include as string | RegExp];
+  const patterns: readonly (string | RegExp)[] =
+    typeof include === 'string' || include instanceof RegExp ? [include] : include;
   const extensions = extensionsOf(patterns);
 
   /**
@@ -183,7 +185,7 @@ export function svmd(options: SvmdOptions = {}): Plugin {
     },
 
     configResolved(config: ResolvedConfig) {
-      filter = createFilter(include, exclude, {
+      filter = createFilter([...patterns, ...kitRouteGlobs(config, extensions)], exclude, {
         resolve: config.root,
       });
       remapSvelteWarnings(config, SUFFIX, maps);
